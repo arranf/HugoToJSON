@@ -11,12 +11,14 @@ const FORWARD_SLASH: &str = "/";
 const EMPTY_STRING: &str = "";
 const TOML_FENCE: &str = "+++";
 
-fn main() -> std::io::Result<()> {
+fn main() {
     let args: Vec<String> = env::args().collect();
     let config = Config::new(&args);
+    println!("Scanning ${0}", &config.scan_path);
     let index = index_pages(&Path::new(&config.scan_path));
-    let index = serde_json::to_string(&index)?;
-    fs::write(config.index_path, index)
+    let index = serde_json::to_string(&index).expect("Unable to serialize page index");
+    println!("Writing index to {0}", &config.index_path);
+    fs::write(config.index_path, index).expect("Error writing index");
 }
 
 
@@ -25,7 +27,7 @@ fn index_pages(content_dir_path: &Path) -> Vec<PageIndex> {
     for entry in WalkDir::new(content_dir_path)
                         .into_iter()
                         .filter_entry(|e| !is_hidden(e)) {
-        let file = entry.expect("Error accessing file/directory during traversal");
+        let file = entry.expect("Error accessing file/directory during traversal.");
         let page_index = process_file(content_dir_path, file);
         if page_index.is_some() {
             index.push(page_index.unwrap());
