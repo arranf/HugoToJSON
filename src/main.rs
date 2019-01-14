@@ -18,6 +18,7 @@ fn main() {
     let index = index_pages(&Path::new(&config.scan_path));
     let index = serde_json::to_string(&index).expect("Unable to serialize page index");
     println!("Writing index to {0}", &config.index_path);
+    fs::create_dir_all(Path::new(&config.index_path).with_file_name(EMPTY_STRING)).expect("Error creating directories to write index");
     fs::write(config.index_path, index).expect("Error writing index");
 }
 
