@@ -18,7 +18,7 @@
                     "kind": "bin"
                 }
             },
-            "args": [],
+            "args": ["../blog/content", "../blog/static/index.json"],
             "cwd": "${workspaceFolder}"
         },
         {
