@@ -23,7 +23,7 @@ fn main() -> Result<(), std::io::Error> {
     let index = serde_json::to_string(&index).expect("Unable to serialize page index");
     
     println!("Writing index to {0}", &config.index_path);
-    fs::create_dir_all(Path::new(&config.index_path).with_file_name(constants::EMPTY_STRING)).expect("Error creating directories to write index");
+    fs::create_dir_all(Path::new(&config.index_path).with_file_name(constants::EMPTY_STRING)).expect("Error writing index");
     
     fs::write(config.index_path, index)
 }
@@ -34,7 +34,7 @@ fn index_pages(content_dir_path: &Path) -> Vec<page_index::PageIndex> {
     for entry in WalkDir::new(content_dir_path)
                         .into_iter()
                         .filter_entry(|e| !is_hidden(e)) {
-        let file = entry.expect("Error accessing file/directory during traversal.");
+        let file = entry.expect("Error accessing file/directory during traversal. File/directory may be missing");
         let page_index = process_file(content_dir_path, file);
         if page_index.is_some() {
             index.push(page_index.unwrap());
@@ -81,7 +81,7 @@ fn process_md_file(root_dir: &Path, abs_path: &Path) -> Option<page_index::PageI
     match first_line.unwrap().chars().next().unwrap() {
         '+' => process_toml_front_matter(contents, directory),
         '-' => process_yaml_front_matter(contents, directory),
-        // '{' => process_json_frontmatter()
+        // TODO: JSON frontmatter '{' => process_json_frontmatter()
         _ => None
     }
 }
@@ -95,23 +95,56 @@ fn process_toml_front_matter(contents: String, directory: String) -> Option<page
         return None;
     }
 
-    let front_matter = split_content[length - 2].trim().parse::<Value>().expect("Unable to parse TOML");
-    let is_draft =  front_matter.get("draft").and_then(|v| v.as_bool()).unwrap_or(false);
+    let front_matter = split_content[length - 2].trim().parse::<Value>();
+    if front_matter.is_ok() {
+        return None;
+    }
+    
+    let front_matter = front_matter.unwrap();
+    
+    let is_draft =  front_matter.get(constants::DRAFT).and_then(|v| v.as_bool()).unwrap_or(false);
 
+    // TODO: Add a flag to allow indexing drafts
     if is_draft {
         return None;
     }
     
-    let title = front_matter.get("title").and_then(|v| v.as_str());
-    let slug = front_matter.get("slug").and_then(|v| v.as_str());
-    let tags: Vec<String> = front_matter.get("tags").and_then(|v| v.as_array()).expect("Unable to get tags array")
+    let title = front_matter.get(constants::TITLE).and_then(|v| v.as_str());
+    let slug = front_matter.get(constants::SLUG).and_then(|v| v.as_str());
+    let date = front_matter.get(constants::DATE).and_then(|v| v.as_str());
+    let description = front_matter.get(constants::DESCRIPTION).and_then(|v| v.as_str());
+
+    let categories: Vec<String> = front_matter.get(constants::CATEGORIES).and_then(|v| v.as_array())
+        .unwrap_or(&Vec::new())
         .iter()
-        .map(|v| v.as_str().expect("A tag in front matter is not a string").trim().to_owned())
+        .filter_map(|v| v.as_str())
+        .map(|s| s.trim().to_owned())
+        .collect();
+
+    let series: Vec<String> = front_matter.get(constants::SERIES).and_then(|v| v.as_array())
+        .unwrap_or(&Vec::new())
+        .iter()
+        .filter_map(|v| v.as_str())
+        .map(|s| s.trim().to_owned())
+        .collect();
+
+    let tags: Vec<String> = front_matter.get(constants::TAGS).and_then(|v| v.as_array())
+        .unwrap_or(&Vec::new())
+        .iter()
+        .filter_map(|v| v.as_str())
+        .map(|s| s.trim().to_owned())
+        .collect();
+    
+    let keywords: Vec<String> = front_matter.get(constants::KEYWORDS).and_then(|v| v.as_array())
+        .unwrap_or(&Vec::new())
+        .iter()
+        .filter_map(|v| v.as_str())
+        .map(|s| s.trim().to_owned())
         .collect();
     
     let content = split_content[length - 1].trim().to_owned();
 
-    page_index::PageIndex::new(title, slug, tags, content, directory)
+    page_index::PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, directory)
 }
 
 fn process_yaml_front_matter(contents: String, directory: String) -> Option<page_index::PageIndex> {
@@ -124,23 +157,53 @@ fn process_yaml_front_matter(contents: String, directory: String) -> Option<page
     }
 
     let front_matter = split_content[length - 2].trim();
-    let front_matter = &YamlLoader::load_from_str(front_matter).expect("Unable to parse YAML")[0];
-    let is_draft =  front_matter["draft"].as_bool().unwrap_or(false);
+    let front_matter = &YamlLoader::load_from_str(front_matter).expect("Unable to parse YAML");
+    let front_matter = front_matter.first();
+    if front_matter.is_none() {
+        return None;
+    }
+    
+    let front_matter = front_matter.unwrap();
 
+    let is_draft =  front_matter[constants::DRAFT].as_bool().unwrap_or(false);
+
+    // TODO: Add a flag to allow indexing drafts
     if is_draft {
         return None;
     }
     
-    let title = front_matter["title"].as_str();
-    let slug = front_matter["slug"].as_str();
-    let tags: Vec<String> = front_matter["tags"].as_vec().expect("Unable to get tags array")
+    let title = front_matter[constants::TITLE].as_str();
+    let slug = front_matter[constants::SLUG].as_str();
+    let description = front_matter[constants::DESCRIPTION].as_str();
+    let date = front_matter[constants::DATE].as_str();
+
+    let series: Vec<String> = front_matter[constants::SERIES].as_vec().unwrap_or(&Vec::new())
         .iter()
-        .map(|v| v.as_str().expect("A tag in front matter is not a string").trim().to_owned())
+        .filter_map(|v| v.as_str())
+        .map(|s| s.trim().to_owned())
+        .collect();
+
+    let categories: Vec<String> = front_matter[constants::CATEGORIES].as_vec().unwrap_or(&Vec::new())
+        .iter()
+        .filter_map(|v| v.as_str())
+        .map(|s| s.trim().to_owned())
+        .collect();
+
+    let tags: Vec<String> = front_matter[constants::TAGS].as_vec().unwrap_or(&Vec::new())
+        .iter()
+        .filter_map(|v| v.as_str())
+        .map(|s| s.trim().to_owned())
+        .collect();
+
+    let keywords: Vec<String> = front_matter[constants::KEYWORDS].as_vec().unwrap_or(&Vec::new())
+        .iter()
+        .filter_map(|v| v.as_str())
+        .map(|s| s.trim().to_owned())
         .collect();
     
     let content = split_content[length - 1].trim().to_owned();
 
-    page_index::PageIndex::new(title, slug, tags, content, directory)
+    page_index::PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, directory)
 }
 
 fn is_hidden(entry: &DirEntry) -> bool {
