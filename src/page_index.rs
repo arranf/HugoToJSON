@@ -33,3 +33,73 @@ impl PageIndex {
         Some(PageIndex{title, date, description, categories, tags, series, keywords, href, content})
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn constructs_valid_href() {
+        let title = Some("Title");
+        let slug = Some("my-example-post");
+        let date = Some("2018-01-01");
+        let description = Some("An example description");
+        let categories = Vec::new();
+        let tags = Vec::new();
+        let keywords = Vec::new();
+        let series = Vec::new();
+        let content = "A lot of content".to_owned();
+        let directory = "post".to_owned();
+
+        let page_index = PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, directory);
+        assert!(page_index.is_some());
+        assert_eq!(page_index.unwrap().href, "/post/my-example-post")
+    }
+
+    #[test]
+    fn no_title_returns_none() {
+        let title = None;
+        let slug = Some("my-example-post");
+        let date = Some("2018-01-01");
+        let description = Some("An example description");
+        let categories = Vec::new();
+        let tags = Vec::new();
+        let keywords = Vec::new();
+        let series = Vec::new();
+        let content = "A lot of content".to_owned();
+        let directory = "post".to_owned();
+
+        assert!(PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, directory).is_none());
+    }
+    #[test]
+    fn no_slug_returns_none() {
+        let title = Some("Title");
+        let slug = None;
+        let date = Some("2018-01-01");
+        let description = Some("An example description");
+        let categories = Vec::new();
+        let tags = Vec::new();
+        let keywords = Vec::new();
+        let series = Vec::new();
+        let content = "A lot of content".to_owned();
+        let directory = "post".to_owned();
+
+        assert!(PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, directory).is_none());
+    }
+
+    #[test]
+    fn no_date_returns_none() {
+        let title = Some("Title");
+        let slug = Some("my-example-post");
+        let date = None;
+        let description = Some("An example description");
+        let categories = Vec::new();
+        let tags = Vec::new();
+        let keywords = Vec::new();
+        let series = Vec::new();
+        let content = "A lot of content".to_owned();
+        let directory = "post".to_owned();
+
+        assert!(PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, directory).is_none());
+    }
+}
