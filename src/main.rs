@@ -19,7 +19,7 @@ fn main() -> Result<(), std::io::Error> {
     let config = config::Config::new(&args);
     
     println!("Scanning ${0}", &config.scan_path);
-    let index = index_pages(&Path::new(&config.scan_path));
+    let index = traverse_files(&Path::new(&config.scan_path));
     let index = serde_json::to_string(&index).expect("Unable to serialize page index");
     
     println!("Writing index to {0}", &config.index_path);
@@ -29,7 +29,7 @@ fn main() -> Result<(), std::io::Error> {
 }
 
 
-fn index_pages(content_dir_path: &Path) -> Vec<page_index::PageIndex> {
+fn traverse_files(content_dir_path: &Path) -> Vec<page_index::PageIndex> {
     let mut index = Vec::new();
     for entry in WalkDir::new(content_dir_path)
                         .into_iter()
@@ -50,12 +50,11 @@ fn process_file(root_dir: &Path, file: walkdir::DirEntry) -> Option<page_index::
 
     let path = file.path();
     let extension: Option<_> = path.extension().and_then(|e| e.to_str());
-    if extension.is_none() {
-        return None;
-    }
-    match extension.unwrap() {
-        "md" => process_md_file(root_dir, path),
+
+    match extension {
+        Some("md") => process_md_file(root_dir, path),
         // TODO: HTML
+        None => None,
         _ => None
     }
 }
@@ -68,7 +67,7 @@ fn process_md_file(root_dir: &Path, abs_path: &Path) -> Option<page_index::PageI
     
     let directory: String = abs_path.strip_prefix(root_dir).expect("Error fetching subdir")
         .components().take_while(|comp: &Component| comp.as_os_str() != abs_path.file_name().unwrap())
-        .map(|comp: Component| comp.as_os_str().to_str().unwrap())
+        .map(|comp: Component| comp.as_os_str().to_str().expect("Error fetching subdir"))
         .collect::<Vec<&str>>()
         .join(constants::FORWARD_SLASH);
     
@@ -211,4 +210,59 @@ fn is_hidden(entry: &DirEntry) -> bool {
          .to_str()
          .map(|s| s.starts_with("."))
          .unwrap_or(false)
+}
+
+mod test {
+    use super::*;
+
+    #[test]
+    fn page_index_from_yaml() {
+        let contents = String::from(r#"
+---
+draft: false
+title: Responsive Blog Images
+date: "2019-01-20T23:11:28Z"
+slug: responsive-blog-images
+tags:
+  - Hugo
+  - Images
+  - Responsive
+  - Blog
+---
+The state of images on the web is pretty rough. What should be an easy goal, showing a user a picture, is...
+"#);
+        let page_index = process_yaml_front_matter(contents, String::from("post"));
+        assert!(page_index.is_some());
+        let page_index = page_index.unwrap();
+        assert_eq!(page_index.title, "Responsive Blog Images");
+        assert_eq!(page_index.content, "The state of images on the web is pretty rough. What should be an easy goal, showing a user a picture, is...");
+        assert_eq!(page_index.date, "2019-01-20T23:11:28Z");
+
+        // Should be empty as not provided
+        assert!(page_index.series.is_empty());
+        assert!(page_index.keywords.is_empty());
+        assert!(page_index.description.is_empty());
+        assert!(page_index.categories.is_empty());
+    }
+
+    #[test]
+    fn page_index_from_yaml_returns_none_when_draft() {
+        let contents = String::from(r#"
+---
+draft: true
+title: Responsive Blog Images
+date: "2019-01-20T23:11:28Z"
+slug: responsive-blog-images
+tags:
+  - Hugo
+  - Images
+  - Responsive
+  - Blog
+---
+The state of images on the web is pretty rough. What should be an easy goal, showing a user a picture, is...
+"#);
+        let page_index = process_yaml_front_matter(contents, String::from("post"));
+        assert!(page_index.is_none());
+    }
+
 }

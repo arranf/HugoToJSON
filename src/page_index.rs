@@ -2,20 +2,20 @@ use crate::constants::*;
 
 #[derive(Serialize)]
 pub struct PageIndex {
-    title: String,
-    href: String,
-    date: String,
-    content: String,
+    pub title: String,
+    pub href: String,
+    pub date: String,
+    pub content: String,
     #[serde(skip_serializing_if = "String::is_empty")]
-    description: String,
+    pub description: String,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    categories: Vec<String>,
+    pub categories: Vec<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    series: Vec<String>,
+    pub series: Vec<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    tags: Vec<String>,
+    pub tags: Vec<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    keywords: Vec<String>,
+    pub keywords: Vec<String>,
 }
 
 impl PageIndex {
