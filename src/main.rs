@@ -239,6 +239,7 @@ The state of images on the web is pretty rough. What should be an easy goal, sho
         assert_eq!(page_index.title, "Responsive Blog Images");
         assert_eq!(page_index.content, "The state of images on the web is pretty rough. What should be an easy goal, showing a user a picture, is...");
         assert_eq!(page_index.date, "2019-01-20T23:11:28Z");
+        assert_eq!(page_index.tags, vec!["Hugo", "Images", "Responsive", "Blog"]);
 
         // Should be empty as not provided
         assert!(page_index.series.is_empty());
@@ -248,7 +249,7 @@ The state of images on the web is pretty rough. What should be an easy goal, sho
     }
 
     #[test]
-    fn page_index_from_yaml_returns_none_when_draft() {
+    fn page_index_from_yaml_returns_skip_err_when_draft() {
         let contents = String::from(r#"
 ---
 draft: true
@@ -265,15 +266,15 @@ The state of images on the web is pretty rough. What should be an easy goal, sho
 "#);
         let page_index = process_yaml_front_matter(contents, String::from("post"));
         assert!(page_index.is_err());
-        // Pattern match error
+        // Pattern match the error type
         match page_index.unwrap_err() {
-            OperationResult::Skip(_) => assert!(true), // The case where the result is a Skip result
-            _ => assert!(false) // All other cases
+            OperationResult::Skip(_) => assert!(true), // The case where the result is a Skip result succeeds
+            _ => assert!(false) // All other cases fail
         }
     }
 
     #[test]
-    fn page_index_from_yaml_returns_err_if_fence_not_closed() {
+    fn page_index_from_yaml_returns_parse_err_if_fence_not_closed() {
         let contents = String::from(r#"
 ---
 draft: true
@@ -286,6 +287,147 @@ tags:
 "#);
         let page_index = process_yaml_front_matter(contents, String::from("post"));
         assert!(page_index.is_err());
+         // Pattern match error
+        match page_index.unwrap_err() {
+            OperationResult::Parse(_) => assert!(true), // The case where the result is a Parse result succeeds
+            _ => assert!(false) // All other cases fail
+        }
     }
 
+    #[test]
+    fn page_index_from_yaml_returns_parse_err_on_malformed_yaml() {
+        let contents = String::from(r#"
+---
+title: Responsive Blog Images
+date: "2019-01-20T23:11:28Z"
+slug: responsive-blog-images
+tags
+  - :Hugo
+  - Images
+---
+"#);
+        let page_index = process_yaml_front_matter(contents, String::from("post"));
+        assert!(page_index.is_err());
+         // Pattern match error
+        match page_index.unwrap_err() {
+            OperationResult::Parse(_) => assert!(true), // The case where the result is a Parse result succeeds
+            _ => assert!(false) // All other cases fail
+        }
+    }
+
+    #[test]
+    fn page_index_from_toml() {
+        let contents = String::from(r#"
++++
+date = "2016-04-17"
+draft = false
+title = """Evaluating Software Design"""
+slug = "evaluating-software-design"
+tags = ['software development', 'revision', 'design']
+banner = ""
+aliases = ['/evaluating-software-design/']
++++
+
+Design is iterative
+"#);
+        let page_index = process_toml_front_matter(contents, String::from("post"));
+        assert!(page_index.is_ok());
+        let page_index = page_index.unwrap();
+        assert_eq!(page_index.title, "Evaluating Software Design");
+        assert_eq!(page_index.content, "Design is iterative");
+        assert_eq!(page_index.date, "2016-04-17");
+        assert_eq!(page_index.tags, vec!["software development", "revision", "design"]);
+
+        // Should be empty as not provided
+        assert!(page_index.series.is_empty());
+        assert!(page_index.keywords.is_empty());
+        assert!(page_index.description.is_empty());
+        assert!(page_index.categories.is_empty());
+    }
+
+    #[test]
+    fn page_index_from_toml_returns_skip_err_when_draft() {
+        let contents = String::from(r#"
++++
+date = "2016-04-17"
+draft = true
+title = """Evaluating Software Design"""
+slug = "evaluating-software-design"
+tags = ['software development', 'revision', 'design']
++++
+
+Design is iterative
+"#);
+        let page_index = process_toml_front_matter(contents, String::from("post"));
+        assert!(page_index.is_err());
+         // Pattern match error
+        match page_index.unwrap_err() {
+            OperationResult::Skip(_) => assert!(true), // The case where the result is a Skip result succeeds
+            _ => assert!(false) // All other cases fail
+        }
+    }
+
+    #[test]
+    fn page_index_from_toml_returns_parse_err_for_missing_front_matter_fence() {
+        let contents = String::from(r#"
++++
+date = "2016-04-17"
+draft = false
+title = """Evaluating Software Design"""
+slug = "evaluating-software-design"
+tags = ['software development', 'revision', 'design']
+
+Design is iterative
+"#);
+        let page_index = process_toml_front_matter(contents, String::from("post"));
+        assert!(page_index.is_err());
+         // Pattern match error
+        match page_index.unwrap_err() {
+            OperationResult::Parse(_) => assert!(true), // The case where the result is a Parse result succeeds
+            _ => assert!(false) // All other cases fail
+        }
+    }
+
+    #[test]
+    fn page_index_from_toml_returns_parse_err_for_missing_title_field() {
+        let contents = String::from(r#"
++++
+date = "2016-04-17"
+draft = false
+slug = "evaluating-software-design"
+tags = ['software development', 'revision', 'design']
++++
+
+Design is iterative
+"#);
+        let page_index = process_toml_front_matter(contents, String::from("post"));
+        assert!(page_index.is_err());
+         // Pattern match error
+        match page_index.unwrap_err() {
+            OperationResult::Parse(_) => assert!(true), // The case where the result is a Parse result succeeds
+            _ => assert!(false) // All other cases fail
+        }
+    }
+
+    #[test]
+    fn page_index_from_toml_returns_parse_err_for_malformed_toml() {
+        let contents = String::from(r#"
++++
+date: "2016-04-17"
+draft = false
+title = """Evaluating Software Design"""
+slug = "evaluating-software-design"
+tags = ['software development', 'revision', 'design']
++++
+
+Design is iterative
+"#);
+        let page_index = process_toml_front_matter(contents, String::from("post"));
+        assert!(page_index.is_err());
+         // Pattern match error
+        match page_index.unwrap_err() {
+            OperationResult::Parse(_) => assert!(true), // The case where the result is a Parse result succeeds
+            _ => assert!(false) // All other cases fail
+        }
+    }
 }
