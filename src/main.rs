@@ -1,22 +1,30 @@
-use std::fs;
-use std::path::{Path,Component};
-use std::env;
-
-use toml::Value;
-use walkdir::{DirEntry, WalkDir};
-
 extern crate yaml_rust;
-use yaml_rust::{YamlLoader};
-
 #[macro_use] extern crate serde_derive;
 
 mod page_index;
 mod config;
 mod constants;
+mod operation_result;
+
+use std::fs;
+use std::env;
+use std::path::{Path,Component};
+
+use crate::operation_result::*;
+use crate::page_index::*;
+use crate::config::*;
+
+use toml::Value;
+use walkdir::{DirEntry, WalkDir};
+
+use yaml_rust::{YamlLoader};
+
+
+
 
 fn main() -> Result<(), std::io::Error> {
     let args: Vec<String> = env::args().collect();
-    let config = config::Config::new(&args);
+    let config = Config::new(&args);
     
     println!("Scanning ${0}", &config.scan_path);
     let index = traverse_files(&Path::new(&config.scan_path));
@@ -29,83 +37,82 @@ fn main() -> Result<(), std::io::Error> {
 }
 
 
-fn traverse_files(content_dir_path: &Path) -> Vec<page_index::PageIndex> {
+fn traverse_files(content_dir_path: &Path) -> Vec<PageIndex> {
     let mut index = Vec::new();
     for entry in WalkDir::new(content_dir_path)
                         .into_iter()
-                        .filter_entry(|e| !is_hidden(e)) {
-        let file = entry.expect("Error accessing file/directory during traversal. File/directory may be missing");
-        let page_index = process_file(content_dir_path, file);
-        if page_index.is_some() {
-            index.push(page_index.unwrap());
+                        .filter_entry(|e| !is_hidden(e))
+                        .filter(|e| e.is_ok()) {
+        if let Ok(file) = entry {
+            match process_file(content_dir_path, file) {
+                Ok(page) => index.push(page),
+                Err(OperationResult::Parse(ref err)) => println!("{}", err),
+                Err(OperationResult::Io(ref err)) => println!("{}", err),
+                _ => ()
+            }
+        } else if let Some(io_error) = entry.unwrap_err().into_io_error() {
+            println!("Failed {}", io_error);
+        } else {
+            println!("Error reading unknown file");
         }
     }
     index
 }
 
-fn process_file(root_dir: &Path, file: walkdir::DirEntry) -> Option<page_index::PageIndex>{
-    if !file.file_type().is_file() {
-        return None;
+fn process_file(root_dir: &Path, file: walkdir::DirEntry) -> Result<page_index::PageIndex, OperationResult> {
+    if file.file_type().is_dir() {
+        return Err(OperationResult::Parse(ParseError::new(file.path().to_str().unwrap_or_default().to_owned(), "Not a file")));
     }
 
     let path = file.path();
-    let extension: Option<_> = path.extension().and_then(|e| e.to_str());
+    let extension = path.extension().and_then(|e| e.to_str());
 
     match extension {
         Some("md") => process_md_file(root_dir, path),
-        // TODO: HTML
-        None => None,
-        _ => None
+        // TODO: .html files
+        _ => Err(OperationResult::Parse(ParseError::new(file.path().to_str().unwrap_or_default().to_owned(), "Not a compatible file extension.")))?,
+        // TODO: Handle None
     }
 }
 
-fn process_md_file(root_dir: &Path, abs_path: &Path) -> Option<page_index::PageIndex> {
-    let contents = fs::read_to_string(abs_path)
-        .expect("Something went wrong reading the file");
-
-    // Get the subdirectory path. Given ./blog/content/sub/post/example.md and a root_dir of ./blog/content produce sub/post 
+fn process_md_file(root_dir: &Path, abs_path: &Path) -> Result<page_index::PageIndex, OperationResult> {
+    let contents = fs::read_to_string(abs_path)?;
+    let abs_path_file_name = abs_path.file_name().unwrap();
     
+    // Get the subdirectory path. Given ./blog/content/sub/post/example.md and a root_dir of ./blog/content produce sub/post 
     let directory: String = abs_path.strip_prefix(root_dir).expect("Error fetching subdir")
-        .components().take_while(|comp: &Component| comp.as_os_str() != abs_path.file_name().unwrap())
+        .components().take_while(|comp: &Component| comp.as_os_str() != abs_path_file_name)
         .map(|comp: Component| comp.as_os_str().to_str().expect("Error fetching subdir"))
         .collect::<Vec<&str>>()
         .join(constants::FORWARD_SLASH);
-    
+
+    // TODO: Refactor this 
     let first_line = contents.lines().next();
-
     if first_line.is_none() || first_line.unwrap().trim().is_empty() {
-        return None;
+        return Err(OperationResult::Parse(ParseError::new(directory, "Could not read first line of file")));
     }
-
-    match first_line.unwrap().chars().next().unwrap() {
-        '+' => process_toml_front_matter(contents, directory),
-        '-' => process_yaml_front_matter(contents, directory),
+    match first_line.unwrap().chars().next() {
+        Some('+') => process_toml_front_matter(contents, directory),
+        Some('-') => process_yaml_front_matter(contents, directory),
         // TODO: JSON frontmatter '{' => process_json_frontmatter()
-        _ => None
+        _ => Err(OperationResult::Parse(ParseError::new(directory,"Could not determine file front matter type.")))
     }
 }
 
-fn process_toml_front_matter(contents: String, directory: String) -> Option<page_index::PageIndex> {
+fn process_toml_front_matter(contents: String, directory: String) -> Result<page_index::PageIndex, OperationResult> {
     let split_content: Vec<&str> = contents.trim().split(constants::TOML_FENCE).collect();
 
     let length = split_content.len();
     if  length <= 1 {
-        println!("Error reading {0}. Could not split on TOML fence. Skipping.", directory);
-        return None;
+        return Err(OperationResult::Parse(ParseError::new(directory, "Could not split on TOML fence.")));
     }
 
-    let front_matter = split_content[length - 2].trim().parse::<Value>();
-    if front_matter.is_ok() {
-        return None;
-    }
-    
-    let front_matter = front_matter.unwrap();
-    
+    let front_matter = split_content[length - 2].trim().parse::<Value>().map_err(|_| ParseError::new(directory.to_string(), "Could parse TOML front matter."))?;   
     let is_draft =  front_matter.get(constants::DRAFT).and_then(|v| v.as_bool()).unwrap_or(false);
 
     // TODO: Add a flag to allow indexing drafts
     if is_draft {
-        return None;
+        return Err(OperationResult::Skip(Skip::new(directory, "Is draft.")));
     }
     
     let title = front_matter.get(constants::TITLE).and_then(|v| v.as_str());
@@ -146,29 +153,22 @@ fn process_toml_front_matter(contents: String, directory: String) -> Option<page
     page_index::PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, directory)
 }
 
-fn process_yaml_front_matter(contents: String, directory: String) -> Option<page_index::PageIndex> {
-    // TODO: DRY File Spliting
+fn process_yaml_front_matter(contents: String, directory: String) -> Result<page_index::PageIndex, OperationResult> {
     let split_content: Vec<&str> = contents.trim().split(constants::YAML_FENCE).collect();
     let length = split_content.len();
     if length <= 1 {
-        println!("Error reading {0}. Could not split on YAML fence. Skipping.", directory);
-        return None;
+        return Err(OperationResult::Parse(ParseError::new(directory, "Could not split on YAML fence.")))
     }
 
     let front_matter = split_content[length - 2].trim();
-    let front_matter = &YamlLoader::load_from_str(front_matter).expect("Unable to parse YAML");
-    let front_matter = front_matter.first();
-    if front_matter.is_none() {
-        return None;
-    }
-    
-    let front_matter = front_matter.unwrap();
+    let front_matter = YamlLoader::load_from_str(front_matter).map_err(|_| ParseError::new(directory.to_string(), "Failed to get front matter."))?;
+    let front_matter = front_matter.first().ok_or(ParseError::new(directory.to_string(), "Failed to get front matter."))?;
 
     let is_draft =  front_matter[constants::DRAFT].as_bool().unwrap_or(false);
 
     // TODO: Add a flag to allow indexing drafts
     if is_draft {
-        return None;
+        return Err(OperationResult::Skip(Skip::new(directory, "Is draft.")));
     }
     
     let title = front_matter[constants::TITLE].as_str();
@@ -202,7 +202,7 @@ fn process_yaml_front_matter(contents: String, directory: String) -> Option<page
     
     let content = split_content[length - 1].trim().to_owned();
 
-    page_index::PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, directory)
+    PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, directory)
 }
 
 fn is_hidden(entry: &DirEntry) -> bool {
@@ -211,6 +211,8 @@ fn is_hidden(entry: &DirEntry) -> bool {
          .map(|s| s.starts_with("."))
          .unwrap_or(false)
 }
+
+
 
 mod test {
     use super::*;
@@ -232,7 +234,7 @@ tags:
 The state of images on the web is pretty rough. What should be an easy goal, showing a user a picture, is...
 "#);
         let page_index = process_yaml_front_matter(contents, String::from("post"));
-        assert!(page_index.is_some());
+        assert!(page_index.is_ok());
         let page_index = page_index.unwrap();
         assert_eq!(page_index.title, "Responsive Blog Images");
         assert_eq!(page_index.content, "The state of images on the web is pretty rough. What should be an easy goal, showing a user a picture, is...");
@@ -262,7 +264,28 @@ tags:
 The state of images on the web is pretty rough. What should be an easy goal, showing a user a picture, is...
 "#);
         let page_index = process_yaml_front_matter(contents, String::from("post"));
-        assert!(page_index.is_none());
+        assert!(page_index.is_err());
+        // Pattern match error
+        match page_index.unwrap_err() {
+            OperationResult::Skip(_) => assert!(true), // The case where the result is a Skip result
+            _ => assert!(false) // All other cases
+        }
+    }
+
+    #[test]
+    fn page_index_from_yaml_returns_err_if_fence_not_closed() {
+        let contents = String::from(r#"
+---
+draft: true
+title: Responsive Blog Images
+date: "2019-01-20T23:11:28Z"
+slug: responsive-blog-images
+tags:
+  - Hugo
+  - Images
+"#);
+        let page_index = process_yaml_front_matter(contents, String::from("post"));
+        assert!(page_index.is_err());
     }
 
 }

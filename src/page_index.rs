@@ -1,6 +1,7 @@
 use crate::constants::*;
+use crate::operation_result::*;
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct PageIndex {
     pub title: String,
     pub href: String,
@@ -19,10 +20,9 @@ pub struct PageIndex {
 }
 
 impl PageIndex {
-    pub fn new (title: Option<&str>, slug: Option<&str>, date: Option<&str>, description: Option<&str>, categories: Vec<String>, series: Vec<String>, tags: Vec<String>, keywords: Vec<String>, content: String, directory: String) -> Option<PageIndex> {
+    pub fn new (title: Option<&str>, slug: Option<&str>, date: Option<&str>, description: Option<&str>, categories: Vec<String>, series: Vec<String>, tags: Vec<String>, keywords: Vec<String>, content: String, directory: String) -> Result<PageIndex, OperationResult> {
         if title.is_none() || slug.is_none() || date.is_none() {
-            println!("Error reading {0}. Could not read expected fields from front matter. Skipping.", directory);
-            return None;
+            return Err(OperationResult::Parse(ParseError::new(directory, "Could not read expected fields from front matter")))
         }
         
         let title = title.unwrap().trim().to_owned();
@@ -30,7 +30,7 @@ impl PageIndex {
         let description = description.unwrap_or("").to_owned();
         let href = [FORWARD_SLASH, &directory, FORWARD_SLASH, slug.unwrap().trim()].join(EMPTY_STRING);
 
-        Some(PageIndex{title, date, description, categories, tags, series, keywords, href, content})
+        Ok(PageIndex{title, date, description, categories, tags, series, keywords, href, content})
     }
 }
 
@@ -52,12 +52,12 @@ mod tests {
         let directory = "post".to_owned();
 
         let page_index = PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, directory);
-        assert!(page_index.is_some());
+        assert!(page_index.is_ok());
         assert_eq!(page_index.unwrap().href, "/post/my-example-post")
     }
 
     #[test]
-    fn no_title_returns_none() {
+    fn no_title_returns_err() {
         let title = None;
         let slug = Some("my-example-post");
         let date = Some("2018-01-01");
@@ -69,10 +69,10 @@ mod tests {
         let content = "A lot of content".to_owned();
         let directory = "post".to_owned();
 
-        assert!(PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, directory).is_none());
+        assert!(PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, directory).is_err());
     }
     #[test]
-    fn no_slug_returns_none() {
+    fn no_slug_returns_err() {
         let title = Some("Title");
         let slug = None;
         let date = Some("2018-01-01");
@@ -84,11 +84,11 @@ mod tests {
         let content = "A lot of content".to_owned();
         let directory = "post".to_owned();
 
-        assert!(PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, directory).is_none());
+        assert!(PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, directory).is_err());
     }
 
     #[test]
-    fn no_date_returns_none() {
+    fn no_date_returns_err() {
         let title = Some("Title");
         let slug = Some("my-example-post");
         let date = None;
@@ -100,6 +100,6 @@ mod tests {
         let content = "A lot of content".to_owned();
         let directory = "post".to_owned();
 
-        assert!(PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, directory).is_none());
+        assert!(PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, directory).is_err());
     }
 }
