@@ -9,7 +9,7 @@ It currently supports `.md` files and both YAML and TOML front matter.
 ## Using
 
 Example usage is shown below.
-`hugo_lunr example/blog/content example/blog/static/index.json`
+`hugo_to_json example/blog/content example/blog/static/index.json`
 
 Defaults to `./content` for the content directory and `./static/index.json` for the index output.
 
@@ -27,9 +27,9 @@ set -e
 LATEST_RELEASE=$(curl -L -s -H 'Accept: application/json' https://github.com/arranf/HugoLunr/releases/latest)
 # The releases are returned in the format {"id":3622206,"tag_name":"hello-1.0.0.11",...}, we have to extract the tag_name.
 LATEST_VERSION=$(echo $LATEST_RELEASE | sed -e 's/.*"tag_name":"\([^"]*\)".*/\1/')
-ARTIFACT_URL="https://github.com/arranf/HugoLunr/releases/download/$LATEST_VERSION/hugo_lunr"
+ARTIFACT_URL="https://github.com/arranf/HugoToJSON/releases/download/$LATEST_VERSION/hugo_to_json"
 INSTALL_DIRECTORY="."
-INSTALL_NAME="hugo_lunr"
+INSTALL_NAME="hugo_to_json"
 DOWNLOAD_FILE="$INSTALL_DIRECTORY/$INSTALL_NAME"
 
  echo "Fetching $ARTIFACT_URL.."
