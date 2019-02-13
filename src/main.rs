@@ -1,25 +1,34 @@
+extern crate yaml_rust;
+
+#[macro_use]
+extern crate serde_derive;
+
+mod config;
+mod constants;
+mod file_location;
+mod operation_result;
+mod page_index;
+
 use std::fs;
-use std::path::{Path,Component};
 use std::env;
+use std::path::{Path};
+
+use crate::operation_result::*;
+use crate::page_index::*;
+use crate::config::*;
+use crate::file_location::*;
 
 use toml::Value;
 use walkdir::{DirEntry, WalkDir};
-
-extern crate yaml_rust;
 use yaml_rust::{YamlLoader};
 
-#[macro_use] extern crate serde_derive;
-
-mod page_index;
-mod config;
-mod constants;
 
 fn main() -> Result<(), std::io::Error> {
     let args: Vec<String> = env::args().collect();
-    let config = config::Config::new(&args);
+    let config = Config::new(&args);
     
-    println!("Scanning ${0}", &config.scan_path);
-    let index = index_pages(&Path::new(&config.scan_path));
+    println!("Scanning {0}", &config.scan_path);
+    let index = traverse_files(&Path::new(&config.scan_path));
     let index = serde_json::to_string(&index).expect("Unable to serialize page index");
     
     println!("Writing index to {0}", &config.index_path);
@@ -28,85 +37,76 @@ fn main() -> Result<(), std::io::Error> {
     fs::write(config.index_path, index)
 }
 
-
-fn index_pages(content_dir_path: &Path) -> Vec<page_index::PageIndex> {
+fn traverse_files(content_dir_path: &Path) -> Vec<PageIndex> {
     let mut index = Vec::new();
     for entry in WalkDir::new(content_dir_path)
                         .into_iter()
                         .filter_entry(|e| !is_hidden(e)) {
-        let file = entry.expect("Error accessing file/directory during traversal. File/directory may be missing");
-        let page_index = process_file(content_dir_path, file);
-        if page_index.is_some() {
-            index.push(page_index.unwrap());
+        if let Ok(file) = entry {
+            let file_location = FileLocation::new(file, content_dir_path);
+            if file_location.is_err() {
+                continue;
+            }
+
+            match process_file(file_location.unwrap()) {
+                Ok(page) => index.push(page),
+                Err(OperationResult::Parse(ref err)) => println!("{}", err),
+                Err(OperationResult::Io(ref err)) => println!("{}", err),
+                _ => ()
+            }
+        } else if let Some(io_error) = entry.unwrap_err().into_io_error() {
+            println!("Failed {}", io_error);
+        } else {
+            println!("Error reading unknown file");
         }
     }
     index
 }
 
-fn process_file(root_dir: &Path, file: walkdir::DirEntry) -> Option<page_index::PageIndex>{
-    if !file.file_type().is_file() {
-        return None;
-    }
-
-    let path = file.path();
-    let extension: Option<_> = path.extension().and_then(|e| e.to_str());
-    if extension.is_none() {
-        return None;
-    }
-    match extension.unwrap() {
-        "md" => process_md_file(root_dir, path),
-        // TODO: HTML
-        _ => None
+fn process_file(file_location: FileLocation) -> Result<page_index::PageIndex, OperationResult> {
+    match file_location.extension.as_ref() {
+        constants::MARKDOWN_EXTENSION => process_md_file(file_location),
+        // TODO: .html files
+        _ => Err(OperationResult::Path(PathError::new(file_location.absolute_path, "Not a compatible file extension."))),
+        // TODO: Handle None
     }
 }
 
-fn process_md_file(root_dir: &Path, abs_path: &Path) -> Option<page_index::PageIndex> {
-    let contents = fs::read_to_string(abs_path)
-        .expect("Something went wrong reading the file");
+fn process_md_file(file_location: FileLocation) -> Result<page_index::PageIndex, OperationResult> {
+    let contents = fs::read_to_string(file_location.absolute_path.to_string())?;
 
-    // Get the subdirectory path. Given ./blog/content/sub/post/example.md and a root_dir of ./blog/content produce sub/post 
+    let mut first_line = "";
+    let mut lines = contents.lines();
     
-    let directory: String = abs_path.strip_prefix(root_dir).expect("Error fetching subdir")
-        .components().take_while(|comp: &Component| comp.as_os_str() != abs_path.file_name().unwrap())
-        .map(|comp: Component| comp.as_os_str().to_str().unwrap())
-        .collect::<Vec<&str>>()
-        .join(constants::FORWARD_SLASH);
-    
-    let first_line = contents.lines().next();
-
-    if first_line.is_none() || first_line.unwrap().trim().is_empty() {
-        return None;
+    while let Some(line) = lines.next() {
+        if !line.trim().is_empty() {
+            first_line = line;
+            break;
+        }
     }
 
-    match first_line.unwrap().chars().next().unwrap() {
-        '+' => process_toml_front_matter(contents, directory),
-        '-' => process_yaml_front_matter(contents, directory),
+    match first_line.chars().next() {
+        Some('+') => process_toml_front_matter(contents, file_location),
+        Some('-') => process_yaml_front_matter(contents, file_location),
         // TODO: JSON frontmatter '{' => process_json_frontmatter()
-        _ => None
+        _ => Err(OperationResult::Parse(ParseError::new(file_location.absolute_path.to_string(), "Could not determine file front matter type.")))
     }
 }
 
-fn process_toml_front_matter(contents: String, directory: String) -> Option<page_index::PageIndex> {
+fn process_toml_front_matter(contents: String, file_location: FileLocation) -> Result<page_index::PageIndex, OperationResult> {
     let split_content: Vec<&str> = contents.trim().split(constants::TOML_FENCE).collect();
 
     let length = split_content.len();
     if  length <= 1 {
-        println!("Error reading {0}. Could not split on TOML fence. Skipping.", directory);
-        return None;
+        return Err(OperationResult::Parse(ParseError::new(file_location.absolute_path, "Could not split on TOML fence.")));
     }
 
-    let front_matter = split_content[length - 2].trim().parse::<Value>();
-    if front_matter.is_ok() {
-        return None;
-    }
-    
-    let front_matter = front_matter.unwrap();
-    
+    let front_matter = split_content[length - 2].trim().parse::<Value>().map_err(|_| ParseError::new(file_location.absolute_path.to_string(), "Could parse TOML front matter."))?;   
     let is_draft =  front_matter.get(constants::DRAFT).and_then(|v| v.as_bool()).unwrap_or(false);
 
     // TODO: Add a flag to allow indexing drafts
     if is_draft {
-        return None;
+        return Err(OperationResult::Skip(Skip::new(file_location.absolute_path, "Is draft.")));
     }
     
     let title = front_matter.get(constants::TITLE).and_then(|v| v.as_str());
@@ -144,32 +144,27 @@ fn process_toml_front_matter(contents: String, directory: String) -> Option<page
     
     let content = split_content[length - 1].trim().to_owned();
 
-    page_index::PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, directory)
+    page_index::PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, file_location)
 }
 
-fn process_yaml_front_matter(contents: String, directory: String) -> Option<page_index::PageIndex> {
-    // TODO: DRY File Spliting
+fn process_yaml_front_matter(contents: String, file_location: FileLocation) -> Result<page_index::PageIndex, OperationResult> {
     let split_content: Vec<&str> = contents.trim().split(constants::YAML_FENCE).collect();
     let length = split_content.len();
     if length <= 1 {
-        println!("Error reading {0}. Could not split on YAML fence. Skipping.", directory);
-        return None;
+        return Err(OperationResult::Parse(ParseError::new(file_location.absolute_path, "Could not split on YAML fence.")))
     }
 
     let front_matter = split_content[length - 2].trim();
-    let front_matter = &YamlLoader::load_from_str(front_matter).expect("Unable to parse YAML");
-    let front_matter = front_matter.first();
-    if front_matter.is_none() {
-        return None;
-    }
-    
-    let front_matter = front_matter.unwrap();
+    let front_matter = YamlLoader::load_from_str(front_matter)
+        .map_err(|_| ParseError::new(file_location.absolute_path.to_string(), "Failed to get front matter."))?;
+    let front_matter = front_matter.first()
+        .ok_or(ParseError::new(file_location.absolute_path.to_string(), "Failed to get front matter."))?;
 
     let is_draft =  front_matter[constants::DRAFT].as_bool().unwrap_or(false);
 
     // TODO: Add a flag to allow indexing drafts
     if is_draft {
-        return None;
+        return Err(OperationResult::Skip(Skip::new(file_location.absolute_path, "Is draft.")));
     }
     
     let title = front_matter[constants::TITLE].as_str();
@@ -203,7 +198,7 @@ fn process_yaml_front_matter(contents: String, directory: String) -> Option<page
     
     let content = split_content[length - 1].trim().to_owned();
 
-    page_index::PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, directory)
+    PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, file_location)
 }
 
 fn is_hidden(entry: &DirEntry) -> bool {
@@ -211,4 +206,229 @@ fn is_hidden(entry: &DirEntry) -> bool {
          .to_str()
          .map(|s| s.starts_with("."))
          .unwrap_or(false)
+}
+
+
+
+mod test {
+    use super::*;
+
+    fn build_file_location() -> FileLocation {
+        FileLocation {extension: String::from("md"), relative_directory_to_content: String::from("post"), 
+            absolute_path: String::from("/home/blog/content/post/example.md"), file_name: String::from("example.md") }
+    }
+
+    #[test]
+    fn page_index_from_yaml() {
+        let contents = String::from(r#"
+---
+draft: false
+title: Responsive Blog Images
+date: "2019-01-20T23:11:28Z"
+slug: responsive-blog-images
+tags:
+  - Hugo
+  - Images
+  - Responsive
+  - Blog
+---
+The state of images on the web is pretty rough. What should be an easy goal, showing a user a picture, is...
+"#);
+        let page_index = process_yaml_front_matter(contents, build_file_location());
+        assert!(page_index.is_ok());
+        let page_index = page_index.unwrap();
+        assert_eq!(page_index.title, "Responsive Blog Images");
+        assert_eq!(page_index.content, "The state of images on the web is pretty rough. What should be an easy goal, showing a user a picture, is...");
+        assert_eq!(page_index.date, "2019-01-20T23:11:28Z");
+        assert_eq!(page_index.tags, vec!["Hugo", "Images", "Responsive", "Blog"]);
+
+        // Should be empty as not provided
+        assert!(page_index.series.is_empty());
+        assert!(page_index.keywords.is_empty());
+        assert!(page_index.description.is_empty());
+        assert!(page_index.categories.is_empty());
+    }
+
+    #[test]
+    fn page_index_from_yaml_returns_skip_err_when_draft() {
+        let contents = String::from(r#"
+---
+draft: true
+title: Responsive Blog Images
+date: "2019-01-20T23:11:28Z"
+slug: responsive-blog-images
+tags:
+  - Hugo
+  - Images
+  - Responsive
+  - Blog
+---
+The state of images on the web is pretty rough. What should be an easy goal, showing a user a picture, is...
+"#);
+        let page_index = process_yaml_front_matter(contents, build_file_location());
+        assert!(page_index.is_err());
+        // Pattern match the error type
+        match page_index.unwrap_err() {
+            OperationResult::Skip(_) => assert!(true), // The case where the result is a Skip result succeeds
+            _ => assert!(false) // All other cases fail
+        }
+    }
+
+    #[test]
+    fn page_index_from_yaml_returns_parse_err_if_fence_not_closed() {
+        let contents = String::from(r#"
+---
+draft: true
+title: Responsive Blog Images
+date: "2019-01-20T23:11:28Z"
+slug: responsive-blog-images
+tags:
+  - Hugo
+  - Images
+"#);
+        let page_index = process_yaml_front_matter(contents, build_file_location());
+        assert!(page_index.is_err());
+         // Pattern match error
+        match page_index.unwrap_err() {
+            OperationResult::Parse(_) => assert!(true), // The case where the result is a Parse result succeeds
+            _ => assert!(false) // All other cases fail
+        }
+    }
+
+    #[test]
+    fn page_index_from_yaml_returns_parse_err_on_malformed_yaml() {
+        let contents = String::from(r#"
+---
+title: Responsive Blog Images
+date: "2019-01-20T23:11:28Z"
+slug: responsive-blog-images
+tags
+  - :Hugo
+  - Images
+---
+"#);
+        let page_index = process_yaml_front_matter(contents, build_file_location());
+        assert!(page_index.is_err());
+         // Pattern match error
+        match page_index.unwrap_err() {
+            OperationResult::Parse(_) => assert!(true), // The case where the result is a Parse result succeeds
+            _ => assert!(false) // All other cases fail
+        }
+    }
+
+    #[test]
+    fn page_index_from_toml() {
+        let contents = String::from(r#"
++++
+date = "2016-04-17"
+draft = false
+title = """Evaluating Software Design"""
+slug = "evaluating-software-design"
+tags = ['software development', 'revision', 'design']
+banner = ""
+aliases = ['/evaluating-software-design/']
++++
+
+Design is iterative
+"#);
+        let page_index = process_toml_front_matter(contents, build_file_location());
+        assert!(page_index.is_ok());
+        let page_index = page_index.unwrap();
+        assert_eq!(page_index.title, "Evaluating Software Design");
+        assert_eq!(page_index.content, "Design is iterative");
+        assert_eq!(page_index.date, "2016-04-17");
+        assert_eq!(page_index.tags, vec!["software development", "revision", "design"]);
+
+        // Should be empty as not provided
+        assert!(page_index.series.is_empty());
+        assert!(page_index.keywords.is_empty());
+        assert!(page_index.description.is_empty());
+        assert!(page_index.categories.is_empty());
+    }
+
+    #[test]
+    fn page_index_from_toml_returns_skip_err_when_draft() {
+        let contents = String::from(r#"
++++
+date = "2016-04-17"
+draft = true
+title = """Evaluating Software Design"""
+slug = "evaluating-software-design"
+tags = ['software development', 'revision', 'design']
++++
+
+Design is iterative
+"#);
+        let page_index = process_toml_front_matter(contents, build_file_location());
+        assert!(page_index.is_err());
+         // Pattern match error
+        match page_index.unwrap_err() {
+            OperationResult::Skip(_) => assert!(true), // The case where the result is a Skip result succeeds
+            _ => assert!(false) // All other cases fail
+        }
+    }
+
+    #[test]
+    fn page_index_from_toml_returns_parse_err_for_missing_front_matter_fence() {
+        let contents = String::from(r#"
++++
+date = "2016-04-17"
+draft = false
+title = """Evaluating Software Design"""
+slug = "evaluating-software-design"
+tags = ['software development', 'revision', 'design']
+
+Design is iterative
+"#);
+        let page_index = process_toml_front_matter(contents, build_file_location());
+        assert!(page_index.is_err());
+         // Pattern match error
+        match page_index.unwrap_err() {
+            OperationResult::Parse(_) => assert!(true), // The case where the result is a Parse result succeeds
+            _ => assert!(false) // All other cases fail
+        }
+    }
+
+    #[test]
+    fn page_index_from_toml_returns_parse_err_for_missing_title_field() {
+        let contents = String::from(r#"
++++
+date = "2016-04-17"
+draft = false
+slug = "evaluating-software-design"
+tags = ['software development', 'revision', 'design']
++++
+
+Design is iterative
+"#);
+        let page_index = process_toml_front_matter(contents, build_file_location());
+        assert!(page_index.is_err());
+         // Pattern match error
+        match page_index.unwrap_err() {
+            OperationResult::Parse(_) => assert!(true), // The case where the result is a Parse result succeeds
+            _ => assert!(false) // All other cases fail
+        }
+    }
+
+    #[test]
+    fn page_index_from_toml_returns_parse_err_for_malformed_toml() {
+        let contents = String::from(r#"
++++
+date: "2016-04-17"
+draft = false
+title = """Evaluating Software Design"""
+slug = "evaluating-software-design"
+tags = ['software development', 'revision', 'design']
++++
+
+Design is iterative
+"#);
+        let page_index = process_toml_front_matter(contents, build_file_location());
+        assert!(page_index.is_err());
+         // Pattern match error
+        match page_index.unwrap_err() {
+            OperationResult::Parse(_) => assert!(true), // The case where the result is a Parse result succeeds
+            _ => assert!(false) // All other cases fail
+        }
+    }
 }
