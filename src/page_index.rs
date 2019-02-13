@@ -1,3 +1,4 @@
+use crate::file_location::FileLocation;
 use crate::constants::*;
 use crate::operation_result::*;
 
@@ -20,15 +21,21 @@ pub struct PageIndex {
 }
 
 impl PageIndex {
-    pub fn new (title: Option<&str>, slug: Option<&str>, date: Option<&str>, description: Option<&str>, categories: Vec<String>, series: Vec<String>, tags: Vec<String>, keywords: Vec<String>, content: String, directory: String) -> Result<PageIndex, OperationResult> {
-        if title.is_none() || slug.is_none() || date.is_none() {
-            return Err(OperationResult::Parse(ParseError::new(directory, "Could not read expected fields from front matter")))
-        }
-        
-        let title = title.unwrap().trim().to_owned();
-        let date = date.unwrap().trim().to_owned();
+    pub fn new (title: Option<&str>, slug: Option<&str>, date: Option<&str>, description: Option<&str>, categories: Vec<String>, series: Vec<String>, tags: Vec<String>, keywords: Vec<String>, content: String, file_location: FileLocation) -> Result<PageIndex, OperationResult> {
+        let title = title
+            .ok_or(OperationResult::Parse(ParseError::new(file_location.absolute_path.to_string(), "Could not read title from front matter")))?
+            .trim().to_owned();
+
+        let date = date
+            .ok_or(OperationResult::Parse(ParseError::new(file_location.absolute_path.to_string(), "Could not read date from front matter")))?
+            .trim().to_owned();
+
+        let slug = slug
+            .ok_or(OperationResult::Parse(ParseError::new(file_location.absolute_path.to_string(), "Could not read slug from front matter")))?
+            .trim();
+
         let description = description.unwrap_or("").to_owned();
-        let href = [FORWARD_SLASH, &directory, FORWARD_SLASH, slug.unwrap().trim()].join(EMPTY_STRING);
+        let href = [FORWARD_SLASH, &file_location.relative_directory_to_content, FORWARD_SLASH, slug].join(EMPTY_STRING);
 
         Ok(PageIndex{title, date, description, categories, tags, series, keywords, href, content})
     }
@@ -37,6 +44,11 @@ impl PageIndex {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn build_file_location() -> FileLocation {
+        FileLocation {extension: String::from("md"), relative_directory_to_content: String::from("post"), 
+            absolute_path: String::from("/home/blog/content/post/example.md"), file_name: String::from("example.md") }
+    }
 
     #[test]
     fn constructs_valid_href() {
@@ -49,9 +61,8 @@ mod tests {
         let keywords = Vec::new();
         let series = Vec::new();
         let content = "A lot of content".to_owned();
-        let directory = "post".to_owned();
 
-        let page_index = PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, directory);
+        let page_index = PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, build_file_location());
         assert!(page_index.is_ok());
         assert_eq!(page_index.unwrap().href, "/post/my-example-post")
     }
@@ -67,10 +78,10 @@ mod tests {
         let keywords = Vec::new();
         let series = Vec::new();
         let content = "A lot of content".to_owned();
-        let directory = "post".to_owned();
 
-        assert!(PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, directory).is_err());
+        assert!(PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, build_file_location()).is_err());
     }
+
     #[test]
     fn no_slug_returns_err() {
         let title = Some("Title");
@@ -82,9 +93,8 @@ mod tests {
         let keywords = Vec::new();
         let series = Vec::new();
         let content = "A lot of content".to_owned();
-        let directory = "post".to_owned();
 
-        assert!(PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, directory).is_err());
+        assert!(PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, build_file_location()).is_err());
     }
 
     #[test]
@@ -98,8 +108,7 @@ mod tests {
         let keywords = Vec::new();
         let series = Vec::new();
         let content = "A lot of content".to_owned();
-        let directory = "post".to_owned();
 
-        assert!(PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, directory).is_err());
+        assert!(PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, build_file_location()).is_err());
     }
 }

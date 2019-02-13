@@ -1,4 +1,3 @@
-
 use std::io;
 use std::error;
 use std::fmt;
@@ -71,10 +70,42 @@ impl Skip {
 }
 
 #[derive(Debug)]
+pub struct PathError {
+    reason: String,
+    directory: String
+}
+
+impl fmt::Display for PathError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Skiping {}. {}", self.directory, self.reason)
+    }
+}
+
+impl error::Error for PathError {
+    fn description(&self) -> &str {
+        &self.reason
+    }
+
+    fn cause(&self) -> Option<&error::Error> {
+        None
+    }
+}
+
+impl PathError {
+    pub fn new (directory: String, reason: &str) -> PathError {
+        PathError {
+            directory: directory.to_owned(),
+            reason: reason.to_owned(),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub enum OperationResult {
     Io(io::Error),
     Parse(ParseError),
-    Skip(Skip)
+    Skip(Skip),
+    Path(PathError),
 }
 
 impl From<io::Error> for OperationResult {
@@ -95,6 +126,12 @@ impl From<ParseError> for OperationResult {
     }
 }
 
+impl From<PathError> for OperationResult {
+    fn from(err: PathError) -> OperationResult {
+        OperationResult::Path(err)
+    }
+}
+
 impl fmt::Display for OperationResult {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
@@ -102,7 +139,8 @@ impl fmt::Display for OperationResult {
             // their implementations.
             OperationResult::Io(ref err) => write!(f, "IO error: {}", err),
             OperationResult::Parse(ref err) => write!(f, "Parse error: {}", err),
-            OperationResult::Skip(ref err) => write!(f, "Skipped: {}", err)
+            OperationResult::Skip(ref err) => write!(f, "Skipped: {}", err),
+            OperationResult::Path(ref err) => write!(f, "Path manipulaiton error: {}", err),
         }
     }
 }
@@ -114,7 +152,8 @@ impl error::Error for OperationResult {
         match *self {
             OperationResult::Io(ref err) => err.description(),
             OperationResult::Parse(ref err) => err.description(),
-            OperationResult::Skip(ref err) => err.description()
+            OperationResult::Skip(ref err) => err.description(),
+            OperationResult::Path(ref err) => err.description()
         }
     }
 
@@ -125,7 +164,8 @@ impl error::Error for OperationResult {
             // types implement `Error`.
             OperationResult::Io(ref err) => Some(err),
             OperationResult::Parse(ref err) => Some(err),
-            OperationResult::Skip(ref err) => Some(err)
+            OperationResult::Skip(ref err) => Some(err),
+            OperationResult::Path(ref err) => Some(err)
         }
     }
 }
