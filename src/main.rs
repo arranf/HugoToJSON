@@ -209,7 +209,7 @@ fn is_hidden(entry: &DirEntry) -> bool {
 }
 
 
-
+#[cfg(test)]
 mod test {
     use super::*;
 
