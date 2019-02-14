@@ -7,6 +7,7 @@ Pull requests are welcome. A list of goals and work to be done is available in `
 It currently supports `.md` files and both YAML and TOML front matter.
 
 ## Using
+`hugo_to_json HUGO_CONTENT_DIRECTORY OUTPUT_LOCATION`
 
 Example usage is shown below.
 `hugo_to_json example/blog/content example/blog/static/index.json`
