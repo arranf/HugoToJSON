@@ -8,14 +8,16 @@ extern crate serde_derive;
 mod config;
 mod constants;
 mod file_location;
-mod operation_result;
 mod page_index;
+mod operation_result;
+mod program_error;
 
 use std::fs;
 use std::env;
 use std::path::{Path};
 
 use crate::operation_result::*;
+use crate::program_error::*;
 use crate::page_index::*;
 use crate::config::*;
 use crate::file_location::*;
@@ -24,21 +26,29 @@ use toml::Value;
 use walkdir::{DirEntry, WalkDir};
 use yaml_rust::{YamlLoader};
 
-fn main() -> Result<(), std::io::Error> {
+
+fn main() -> Result<(), ProgramError> {
     let args: Vec<String> = env::args().collect();
     let config = Config::new(&args);
     
     println!("Scanning {0}", &config.scan_path);
     let index = traverse_files(&Path::new(&config.scan_path));
-    let index = serde_json::to_string(&index).expect("Unable to serialize page index");
+    let error_count: usize = index.iter().filter(|e| e.is_err()).count();
+    let index: Vec<PageIndex> = index.into_iter().filter_map(|a| a.ok()).collect();
+    let index = serde_json::to_string(&index)?;
     
     println!("Writing index to {0}", &config.index_path);
-    fs::create_dir_all(Path::new(&config.index_path).with_file_name(constants::EMPTY_STRING)).expect("Error writing index");
+    fs::create_dir_all(Path::new(&config.index_path).with_file_name(constants::EMPTY_STRING))?;
     
-    fs::write(config.index_path, index)
+    fs::write(config.index_path, index)?;
+    if error_count > 0 {
+        Err(ProgramError::MetaError(MetaError::new(error_count, "Failed to process all content files")))
+    } else {
+        Ok(())
+    }
 }
 
-fn traverse_files(content_dir_path: &Path) -> Vec<PageIndex> {
+fn traverse_files(content_dir_path: &Path) -> Vec<Result<PageIndex, OperationResult>> {
     let mut index = Vec::new();
     for entry in WalkDir::new(content_dir_path)
                         .into_iter()
@@ -48,12 +58,13 @@ fn traverse_files(content_dir_path: &Path) -> Vec<PageIndex> {
             if file_location.is_err() {
                 continue;
             }
-
-            match process_file(&file_location.unwrap()) {
-                Ok(page) => index.push(page),
-                Err(OperationResult::Parse(ref err)) => println!("{}", err),
-                Err(OperationResult::Io(ref err)) => println!("{}", err),
-                _ => ()
+            let process_result = process_file(&file_location.unwrap());
+            match process_result {
+                Err(OperationResult::Skip(ref err)) =>  println!("{}", err), // Skips don't need to be handled
+                Err(OperationResult::Path(ref err)) => { println!("{}", err); index.push(process_result); },
+                Err(OperationResult::Parse(ref err)) => { println!("{}", err); index.push(process_result); },
+                Err(OperationResult::Io(ref err)) => { println!("{}", err); index.push(process_result); },
+                Ok(_) => index.push(process_result)
             }
         } else if let Some(io_error) = entry.unwrap_err().into_io_error() {
             println!("Failed {}", io_error);
@@ -151,7 +162,7 @@ fn process_yaml_front_matter(contents: &str, file_location: &FileLocation) -> Re
         return Err(OperationResult::Parse(ParseError::new(&file_location.absolute_path, "Could not split on YAML fence.")))
     }
 
-    let front_matter = split_content[length - 2].trim();
+    let front_matter = split_content[1].trim();
     let front_matter = YamlLoader::load_from_str(front_matter)
         .map_err(|_| ParseError::new(&file_location.absolute_path, "Failed to get front matter."))?;
     let front_matter = front_matter.first()

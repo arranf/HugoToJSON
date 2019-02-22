@@ -46,7 +46,7 @@ pub struct Skip {
 
 impl fmt::Display for Skip {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Skiping {}. {}", self.directory, self.reason)
+        write!(f, "Skipping {}. {}", self.directory, self.reason)
     }
 }
 
@@ -77,7 +77,7 @@ pub struct PathError {
 
 impl fmt::Display for PathError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Skiping {}. {}", self.directory, self.reason)
+        write!(f, "Skipping {}. {}", self.directory, self.reason)
     }
 }
 
