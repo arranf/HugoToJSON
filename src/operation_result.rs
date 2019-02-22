@@ -29,7 +29,7 @@ impl error::Error for ParseError {
 }
 
 impl ParseError {
-    pub fn new (directory: String, info: &str) -> Self {
+    pub fn new (directory: &str, info: &str) -> Self {
         Self {
             directory: directory.to_owned(),
             info: info.to_owned(),
@@ -61,7 +61,7 @@ impl error::Error for Skip {
 }
 
 impl Skip {
-    pub fn new (directory: String, reason: &str) -> Self {
+    pub fn new (directory: &str, reason: &str) -> Self {
         Self {
             directory: directory.to_owned(),
             reason: reason.to_owned(),
@@ -92,7 +92,7 @@ impl error::Error for PathError {
 }
 
 impl PathError {
-    pub fn new (directory: String, reason: &str) -> Self {
+    pub fn new (directory: &str, reason: &str) -> Self {
         Self {
             directory: directory.to_owned(),
             reason: reason.to_owned(),
