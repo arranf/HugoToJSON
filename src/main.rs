@@ -1,3 +1,5 @@
+#![warn(clippy::all, clippy::pedantic)]
+
 extern crate yaml_rust;
 
 #[macro_use]
@@ -21,7 +23,6 @@ use crate::file_location::*;
 use toml::Value;
 use walkdir::{DirEntry, WalkDir};
 use yaml_rust::{YamlLoader};
-
 
 fn main() -> Result<(), std::io::Error> {
     let args: Vec<String> = env::args().collect();
@@ -117,29 +118,25 @@ fn process_toml_front_matter(contents: String, file_location: FileLocation) -> R
     let categories: Vec<String> = front_matter.get(constants::CATEGORIES).and_then(|v| v.as_array())
         .unwrap_or(&Vec::new())
         .iter()
-        .filter_map(|v| v.as_str())
-        .map(|s| s.trim().to_owned())
+        .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
         .collect();
 
     let series: Vec<String> = front_matter.get(constants::SERIES).and_then(|v| v.as_array())
         .unwrap_or(&Vec::new())
         .iter()
-        .filter_map(|v| v.as_str())
-        .map(|s| s.trim().to_owned())
+        .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
         .collect();
 
     let tags: Vec<String> = front_matter.get(constants::TAGS).and_then(|v| v.as_array())
         .unwrap_or(&Vec::new())
         .iter()
-        .filter_map(|v| v.as_str())
-        .map(|s| s.trim().to_owned())
+        .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
         .collect();
     
     let keywords: Vec<String> = front_matter.get(constants::KEYWORDS).and_then(|v| v.as_array())
         .unwrap_or(&Vec::new())
         .iter()
-        .filter_map(|v| v.as_str())
-        .map(|s| s.trim().to_owned())
+        .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
         .collect();
     
     let content = split_content[length - 1].trim().to_owned();
@@ -158,7 +155,7 @@ fn process_yaml_front_matter(contents: String, file_location: FileLocation) -> R
     let front_matter = YamlLoader::load_from_str(front_matter)
         .map_err(|_| ParseError::new(file_location.absolute_path.to_string(), "Failed to get front matter."))?;
     let front_matter = front_matter.first()
-        .ok_or(ParseError::new(file_location.absolute_path.to_string(), "Failed to get front matter."))?;
+        .ok_or_else(| | ParseError::new(file_location.absolute_path.to_string(), "Failed to get front matter."))?;
 
     let is_draft =  front_matter[constants::DRAFT].as_bool().unwrap_or(false);
 
@@ -174,26 +171,22 @@ fn process_yaml_front_matter(contents: String, file_location: FileLocation) -> R
 
     let series: Vec<String> = front_matter[constants::SERIES].as_vec().unwrap_or(&Vec::new())
         .iter()
-        .filter_map(|v| v.as_str())
-        .map(|s| s.trim().to_owned())
+        .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
         .collect();
 
     let categories: Vec<String> = front_matter[constants::CATEGORIES].as_vec().unwrap_or(&Vec::new())
         .iter()
-        .filter_map(|v| v.as_str())
-        .map(|s| s.trim().to_owned())
+        .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
         .collect();
 
     let tags: Vec<String> = front_matter[constants::TAGS].as_vec().unwrap_or(&Vec::new())
         .iter()
-        .filter_map(|v| v.as_str())
-        .map(|s| s.trim().to_owned())
+        .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
         .collect();
 
     let keywords: Vec<String> = front_matter[constants::KEYWORDS].as_vec().unwrap_or(&Vec::new())
         .iter()
-        .filter_map(|v| v.as_str())
-        .map(|s| s.trim().to_owned())
+        .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
         .collect();
     
     let content = split_content[length - 1].trim().to_owned();
@@ -204,8 +197,7 @@ fn process_yaml_front_matter(contents: String, file_location: FileLocation) -> R
 fn is_hidden(entry: &DirEntry) -> bool {
     entry.file_name()
          .to_str()
-         .map(|s| s.starts_with("."))
-         .unwrap_or(false)
+         .map_or(false, |s| s.starts_with('.'))
 }
 
 

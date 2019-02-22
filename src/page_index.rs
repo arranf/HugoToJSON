@@ -21,23 +21,24 @@ pub struct PageIndex {
 }
 
 impl PageIndex {
-    pub fn new (title: Option<&str>, slug: Option<&str>, date: Option<&str>, description: Option<&str>, categories: Vec<String>, series: Vec<String>, tags: Vec<String>, keywords: Vec<String>, content: String, file_location: FileLocation) -> Result<PageIndex, OperationResult> {
+    pub fn new (title: Option<&str>, slug: Option<&str>, date: Option<&str>, description: Option<&str>, categories: Vec<String>, series: Vec<String>, tags: Vec<String>, keywords: Vec<String>, content: String, file_location: FileLocation) -> Result<Self, OperationResult> {
+        
         let title = title
-            .ok_or(OperationResult::Parse(ParseError::new(file_location.absolute_path.to_string(), "Could not read title from front matter")))?
+            .ok_or_else(| | OperationResult::Parse(ParseError::new(file_location.absolute_path.to_string(), "Could not read title from front matter")))?
             .trim().to_owned();
 
         let date = date
-            .ok_or(OperationResult::Parse(ParseError::new(file_location.absolute_path.to_string(), "Could not read date from front matter")))?
+            .ok_or_else(| | OperationResult::Parse(ParseError::new(file_location.absolute_path.to_string(), "Could not read date from front matter")))?
             .trim().to_owned();
 
         let slug = slug
-            .ok_or(OperationResult::Parse(ParseError::new(file_location.absolute_path.to_string(), "Could not read slug from front matter")))?
+            .ok_or_else(| | OperationResult::Parse(ParseError::new(file_location.absolute_path.to_string(), "Could not read slug from front matter")))?
             .trim();
 
         let description = description.unwrap_or("").to_owned();
         let href = [FORWARD_SLASH, &file_location.relative_directory_to_content, FORWARD_SLASH, slug].join(EMPTY_STRING);
 
-        Ok(PageIndex{title, date, description, categories, tags, series, keywords, href, content})
+        Ok(Self{title, date, description, categories, tags, series, keywords, href, content})
     }
 }
 

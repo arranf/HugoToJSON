@@ -29,8 +29,8 @@ impl error::Error for ParseError {
 }
 
 impl ParseError {
-    pub fn new (directory: String, info: &str) -> ParseError {
-        ParseError {
+    pub fn new (directory: String, info: &str) -> Self {
+        Self {
             directory: directory.to_owned(),
             info: info.to_owned(),
             error: None
@@ -61,8 +61,8 @@ impl error::Error for Skip {
 }
 
 impl Skip {
-    pub fn new (directory: String, reason: &str) -> Skip {
-        Skip {
+    pub fn new (directory: String, reason: &str) -> Self {
+        Self {
             directory: directory.to_owned(),
             reason: reason.to_owned(),
         }
@@ -92,8 +92,8 @@ impl error::Error for PathError {
 }
 
 impl PathError {
-    pub fn new (directory: String, reason: &str) -> PathError {
-        PathError {
+    pub fn new (directory: String, reason: &str) -> Self {
+        Self {
             directory: directory.to_owned(),
             reason: reason.to_owned(),
         }
@@ -109,25 +109,25 @@ pub enum OperationResult {
 }
 
 impl From<io::Error> for OperationResult {
-    fn from(err: io::Error) -> OperationResult {
+    fn from(err: io::Error) -> Self {
         OperationResult::Io(err)
     }
 }
 
 impl From<Skip> for OperationResult {
-    fn from(err: Skip) -> OperationResult {
+    fn from(err: Skip) -> Self {
         OperationResult::Skip(err)
     }
 }
 
 impl From<ParseError> for OperationResult {
-    fn from(err: ParseError) -> OperationResult {
+    fn from(err: ParseError) -> Self {
         OperationResult::Parse(err)
     }
 }
 
 impl From<PathError> for OperationResult {
-    fn from(err: PathError) -> OperationResult {
+    fn from(err: PathError) -> Self {
         OperationResult::Path(err)
     }
 }
