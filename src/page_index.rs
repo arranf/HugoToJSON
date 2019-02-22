@@ -21,6 +21,7 @@ pub struct PageIndex {
 }
 
 impl PageIndex {
+    #![allow(clippy::too_many_arguments)]
     pub fn new (title: Option<&str>, slug: Option<&str>, date: Option<&str>, description: Option<&str>, categories: Vec<String>, series: Vec<String>, tags: Vec<String>, keywords: Vec<String>, content: String, file_location: &FileLocation) -> Result<Self, OperationResult> {
         
         let title = title
