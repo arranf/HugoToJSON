@@ -3,7 +3,7 @@ extern crate serde_derive;
 extern crate yaml_rust;
 
 pub mod hugo_to_json_error;
-pub mod config;
+pub mod settings;
 mod constants;
 mod file_location;
 mod page_index;
@@ -19,21 +19,21 @@ use yaml_rust::{YamlLoader};
 use operation_result::*;
 use hugo_to_json_error::*;
 use page_index::*;
-use config::*;
+use settings::*;
 use file_location::*;
 
 
-pub fn convert_to_json(config: Config) -> Result<(), HugotoJsonError> {
-    println!("Scanning {0}", &config.scan_path);
-    let index = traverse_files(&Path::new(&config.scan_path));
+pub fn convert_to_json(settings: Settings) -> Result<(), HugotoJsonError> {
+    println!("Scanning {0}", &settings.scan_path);
+    let index = traverse_files(&Path::new(&settings.scan_path));
     let error_count: usize = index.iter().filter(|e| e.is_err()).count();
     let index: Vec<PageIndex> = index.into_iter().filter_map(|a| a.ok()).collect();
     let index = serde_json::to_string(&index)?;
     
-    println!("Writing index to {0}", &config.index_path);
-    fs::create_dir_all(Path::new(&config.index_path).with_file_name(constants::EMPTY_STRING))?;
+    println!("Writing index to {0}", &settings.index_path);
+    fs::create_dir_all(Path::new(&settings.index_path).with_file_name(constants::EMPTY_STRING))?;
     
-    fs::write(config.index_path, index)?;
+    fs::write(settings.index_path, index)?;
     if error_count > 0 {
         Err(HugotoJsonError::MetaError(MetaError::new(error_count, "Failed to process all content files")))
     } else {
