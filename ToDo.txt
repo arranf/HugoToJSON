@@ -1,5 +1,4 @@
 * Strip markdown or convert to HTML
 * Integration Tests
 * Add flag for including drafts
-* Make functions available as a library as well as a command line program
 * Allow directories to be excluded/included

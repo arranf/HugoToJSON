@@ -25,7 +25,7 @@ use file_location::*;
 
 pub fn convert_to_json(settings: Settings) -> Result<(), HugotoJsonError> {
     println!("Scanning {0}", &settings.scan_path);
-    let index = traverse_files(&Path::new(&settings.scan_path));
+    let index = traverse_files(&Path::new(&settings.scan_path))?;
     let error_count: usize = index.iter().filter(|e| e.is_err()).count();
     let index: Vec<PageIndex> = index.into_iter().filter_map(|a| a.ok()).collect();
     let index = serde_json::to_string(&index)?;
@@ -41,8 +41,11 @@ pub fn convert_to_json(settings: Settings) -> Result<(), HugotoJsonError> {
     }
 }
 
-fn traverse_files(content_dir_path: &Path) -> Vec<Result<PageIndex, OperationResult>> {
+fn traverse_files(content_dir_path: &Path) -> Result<Vec<Result<PageIndex, OperationResult>>, HugotoJsonError> {
     let mut index = Vec::new();
+
+    fs::metadata(content_dir_path)?;
+
     for entry in WalkDir::new(content_dir_path)
                         .into_iter()
                         .filter_entry(|e| !is_hidden(e)) {
@@ -65,7 +68,7 @@ fn traverse_files(content_dir_path: &Path) -> Vec<Result<PageIndex, OperationRes
             println!("Error reading unknown file");
         }
     }
-    index
+    Ok(index)
 }
 
 fn process_file(file_location: &FileLocation) -> Result<page_index::PageIndex, OperationResult> {
