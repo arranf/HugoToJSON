@@ -34,48 +34,48 @@ impl MetaError {
 }
 
 #[derive(Debug)]
-pub enum ProgramError {
+pub enum HugotoJsonError {
     IoError(io::Error),
     MetaError(MetaError),
     SerializationError(serde_json::error::Error)
 }
 
-impl From<io::Error> for ProgramError {
+impl From<io::Error> for HugotoJsonError {
     fn from(err: io::Error) -> Self {
-        ProgramError::IoError(err)
+        HugotoJsonError::IoError(err)
     }
 }
 
-impl From<MetaError> for ProgramError {
+impl From<MetaError> for HugotoJsonError {
     fn from(err: MetaError) -> Self {
-        ProgramError::MetaError(err)
+        HugotoJsonError::MetaError(err)
     }
 }
 
-impl From<serde_json::error::Error> for ProgramError {
+impl From<serde_json::error::Error> for HugotoJsonError {
     fn from(err: serde_json::error::Error) -> Self {
-        ProgramError::SerializationError(err)
+        HugotoJsonError::SerializationError(err)
     }
 }
 
-impl fmt::Display for ProgramError {
+impl fmt::Display for HugotoJsonError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            ProgramError::IoError(ref err) => write!(f, "IO error: {}", err),
-            ProgramError::MetaError(ref err) => write!(f, "Serialization error: {}", err),
-            ProgramError::SerializationError(ref err) => write!(f, "Serialization error: {}", err),
+            HugotoJsonError::IoError(ref err) => write!(f, "IO error: {}", err),
+            HugotoJsonError::MetaError(ref err) => write!(f, "Serialization error: {}", err),
+            HugotoJsonError::SerializationError(ref err) => write!(f, "Serialization error: {}", err),
         }
     }
 }
 
-impl error::Error for ProgramError {
+impl error::Error for HugotoJsonError {
     fn description(&self) -> &str {
         // Both underlying errors already impl `Error`, so we defer to their
         // implementations.
         match *self {
-            ProgramError::IoError(ref err) => err.description(),
-            ProgramError::MetaError(ref err) => err.description(),
-            ProgramError::SerializationError(ref err) => err.description(),
+            HugotoJsonError::IoError(ref err) => err.description(),
+            HugotoJsonError::MetaError(ref err) => err.description(),
+            HugotoJsonError::SerializationError(ref err) => err.description(),
         }
     }
 
@@ -84,9 +84,9 @@ impl error::Error for ProgramError {
             // N.B. Both of these implicitly cast `err` from their concrete
             // types to a trait object `&Error`. This works because both error 
             // types implement `Error`.
-            ProgramError::IoError(ref err) => Some(err),
-            ProgramError::MetaError(ref err) => Some(err),
-            ProgramError::SerializationError(ref err) => Some(err)
+            HugotoJsonError::IoError(ref err) => Some(err),
+            HugotoJsonError::MetaError(ref err) => Some(err),
+            HugotoJsonError::SerializationError(ref err) => Some(err)
         }
     }
 }

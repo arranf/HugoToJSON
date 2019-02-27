@@ -2,7 +2,7 @@
 extern crate serde_derive;
 extern crate yaml_rust;
 
-pub mod program_error;
+pub mod hugo_to_json_error;
 pub mod config;
 mod constants;
 mod file_location;
@@ -12,17 +12,18 @@ mod operation_result;
 use std::fs;
 use std::path::{Path};
 
-use operation_result::*;
-use crate::program_error::*;
-use crate::page_index::*;
-use crate::config::*;
-use crate::file_location::*;
-
 use toml::Value;
 use walkdir::{DirEntry, WalkDir};
 use yaml_rust::{YamlLoader};
 
-pub fn convert_to_json(config: Config) -> Result<(), ProgramError> {
+use operation_result::*;
+use hugo_to_json_error::*;
+use page_index::*;
+use config::*;
+use file_location::*;
+
+
+pub fn convert_to_json(config: Config) -> Result<(), HugotoJsonError> {
     println!("Scanning {0}", &config.scan_path);
     let index = traverse_files(&Path::new(&config.scan_path));
     let error_count: usize = index.iter().filter(|e| e.is_err()).count();
@@ -34,7 +35,7 @@ pub fn convert_to_json(config: Config) -> Result<(), ProgramError> {
     
     fs::write(config.index_path, index)?;
     if error_count > 0 {
-        Err(ProgramError::MetaError(MetaError::new(error_count, "Failed to process all content files")))
+        Err(HugotoJsonError::MetaError(MetaError::new(error_count, "Failed to process all content files")))
     } else {
         Ok(())
     }
