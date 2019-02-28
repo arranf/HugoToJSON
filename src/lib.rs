@@ -25,7 +25,7 @@ use settings::*;
 use file_location::*;
 
 
-pub fn convert_to_json(settings: Settings) -> Result<(), HugotoJsonError> {
+pub fn convert_to_json_and_write(settings: Settings) -> Result<(), HugotoJsonError> {
     info!("Scanning {0}", &settings.scan_path);
     let index = traverse_files(&Path::new(&settings.scan_path))?;
     let error_count: usize = index.iter().filter(|e| e.is_err()).count();
@@ -58,7 +58,10 @@ fn traverse_files(content_dir_path: &Path) -> Result<Vec<Result<PageIndex, Opera
             if file_location.is_err() {
                 continue;
             }
-            let process_result = process_file(&file_location.unwrap());
+            let file_location = file_location.unwrap();
+            debug!("Processing {}", &file_location);
+            
+            let process_result = process_file(&file_location);
             match process_result {
                 Err(OperationResult::Skip(ref err)) =>  warn!("{}", err), // Skips don't need to be handled
                 Err(OperationResult::Path(ref err)) => { error!("{}", err); index.push(process_result); },

@@ -1,6 +1,7 @@
 use crate::constants;
 use crate::operation_result::*;
 
+use std::fmt;
 use std::path::{Path,Component};
 
 use walkdir::{DirEntry};
@@ -36,6 +37,12 @@ impl FileLocation {
         let file_name = file_name.to_string_lossy().into_owned();
         
         Ok(Self { extension, absolute_path, file_name, relative_directory_to_content})
+    }
+}
+
+impl fmt::Display for FileLocation {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.absolute_path)
     }
 }
 
