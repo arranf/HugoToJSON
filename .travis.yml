@@ -1,8 +1,15 @@
 language: rust
 rust:
-  - stable
-  - beta
-  - nightly
+- stable
+- beta
+- nightly
 matrix:
   allow_failures:
-    - rust: nightly
+  - rust: nightly
+deploy:
+  provider: releases
+  api_key:
+    secure: YSYSMMDCzyt8mwPNtNDgiJInCc4Gq2TqCOl6Py2+ohxEgXfNMPnreWg7H9hFG92e9vtc+thDwTQm29bjddyTX5LiFDmZ937d0vQnfoZegvc86v7Q6Nclxf30VyHVSdqLbodgr5+dg7aRwBVvIUcCpBOKgpKo1ngZBmaiNXe+4Cy5yHWL6U6TI30Thssa/78UvprNwzmaZ4QRDLQJDwEN8aWRHnB4/ZM/bKU/PNfhHMghvv1D2G+hs08URamfGYplqQV++VZ7E9hP3xbFJySLmckGB5gkTQwoVbHctrVp6mlq7j1UFgI7DSRt6HlWn7twa00TbYrhhFe94udg6x6DCpggV9hj0ax6xQut7OYVeY1Bs5xXzRQoraIk34GsczAD06B2QYit4BlTF8g1ERD+AHnYQtKFVg6KF0phd2Wh/JjyMFqh66/z7bSedTLARvSbsoQRrHjUQktYDNN0HJsZjCKonPoMQSTZ65tVimwuWzYs37qskvAKLLyYuTbH+gzizYknWZI9talKGL9qsdR/YpXi4WIz0me/EQXopnhh4qk7e7yjacfJJ9GeOYMTCNjArdgUAHBBTjEadk7zJJH8DRMce2t+QYmk1zFF77Rorr32U+/t4L6J3h1KtOlwKhngoK43RLmObNaMdsl2Df7Z1N0EEvFcdpgm1Ls5qjShDo8=
+  file: "./target/release/hugo_to_json"
+  on:
+    repo: arranf/HugoToJSON
