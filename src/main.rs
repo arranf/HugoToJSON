@@ -13,5 +13,5 @@ fn main() -> Result<(), HugotoJsonError> {
 
     let args: Vec<String> = env::args().collect();
     let settings = Settings::new(&args);
-    hugo_to_json::convert_to_json_and_write(settings)
+    hugo_to_json::convert_to_json_and_write(&settings)
 }

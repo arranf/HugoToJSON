@@ -1,3 +1,5 @@
+#![warn(clippy::all, clippy::pedantic)]
+
 #[macro_use]
 extern crate log;
 #[macro_use]
@@ -25,7 +27,7 @@ use settings::*;
 use file_location::*;
 
 
-pub fn convert_to_json_and_write(settings: Settings) -> Result<(), HugotoJsonError> {
+pub fn convert_to_json_and_write(settings: &Settings) -> Result<(), HugotoJsonError> {
     info!("Scanning {0}", &settings.scan_path);
     let index = traverse_files(&Path::new(&settings.scan_path))?;
     let error_count: usize = index.iter().filter(|e| e.is_err()).count();
@@ -38,7 +40,7 @@ pub fn convert_to_json_and_write(settings: Settings) -> Result<(), HugotoJsonErr
     fs::write(&settings.index_path, index)?;
     
     if error_count > 0 {
-        Err(HugotoJsonError::MetaError(MetaError::new(error_count, "Failed to process all content files")))
+        Err(HugotoJsonError::Meta(Meta::new(error_count, "Failed to process all content files")))
     } else {
         debug!("Succesfully wrote index to {0}", &settings.index_path);
         Ok(())
@@ -60,7 +62,7 @@ fn traverse_files(content_dir_path: &Path) -> Result<Vec<Result<PageIndex, Opera
             }
             let file_location = file_location.unwrap();
             debug!("Processing {}", &file_location);
-            
+
             let process_result = process_file(&file_location);
             match process_result {
                 Err(OperationResult::Skip(ref err)) =>  warn!("{}", err), // Skips don't need to be handled
