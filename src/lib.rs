@@ -1,4 +1,6 @@
 #[macro_use]
+extern crate log;
+#[macro_use]
 extern crate serde_derive;
 extern crate yaml_rust;
 
@@ -24,19 +26,21 @@ use file_location::*;
 
 
 pub fn convert_to_json(settings: Settings) -> Result<(), HugotoJsonError> {
-    println!("Scanning {0}", &settings.scan_path);
+    info!("Scanning {0}", &settings.scan_path);
     let index = traverse_files(&Path::new(&settings.scan_path))?;
     let error_count: usize = index.iter().filter(|e| e.is_err()).count();
     let index: Vec<PageIndex> = index.into_iter().filter_map(|a| a.ok()).collect();
     let index = serde_json::to_string(&index)?;
     
-    println!("Writing index to {0}", &settings.index_path);
+    info!("Writing index to {0}", &settings.index_path);
+
     fs::create_dir_all(Path::new(&settings.index_path).with_file_name(constants::EMPTY_STRING))?;
+    fs::write(&settings.index_path, index)?;
     
-    fs::write(settings.index_path, index)?;
     if error_count > 0 {
         Err(HugotoJsonError::MetaError(MetaError::new(error_count, "Failed to process all content files")))
     } else {
+        debug!("Succesfully wrote index to {0}", &settings.index_path);
         Ok(())
     }
 }
@@ -56,16 +60,16 @@ fn traverse_files(content_dir_path: &Path) -> Result<Vec<Result<PageIndex, Opera
             }
             let process_result = process_file(&file_location.unwrap());
             match process_result {
-                Err(OperationResult::Skip(ref err)) =>  println!("{}", err), // Skips don't need to be handled
-                Err(OperationResult::Path(ref err)) => { println!("{}", err); index.push(process_result); },
-                Err(OperationResult::Parse(ref err)) => { println!("{}", err); index.push(process_result); },
-                Err(OperationResult::Io(ref err)) => { println!("{}", err); index.push(process_result); },
+                Err(OperationResult::Skip(ref err)) =>  warn!("{}", err), // Skips don't need to be handled
+                Err(OperationResult::Path(ref err)) => { error!("{}", err); index.push(process_result); },
+                Err(OperationResult::Parse(ref err)) => { error!("{}", err); index.push(process_result); },
+                Err(OperationResult::Io(ref err)) => { error!("{}", err); index.push(process_result); },
                 Ok(_) => index.push(process_result)
             }
         } else if let Some(io_error) = entry.unwrap_err().into_io_error() {
-            println!("Failed {}", io_error);
+            error!("Failed {}", io_error);
         } else {
-            println!("Error reading unknown file");
+            error!("Error reading unknown file");
         }
     }
     Ok(index)

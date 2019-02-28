@@ -87,7 +87,6 @@ impl error::Error for HugotoJsonError {
             HugotoJsonError::IoError(ref err) => Some(err),
             HugotoJsonError::MetaError(ref err) => Some(err),
             HugotoJsonError::SerializationError(ref err) => Some(err)
-            
         }
     }
 }
