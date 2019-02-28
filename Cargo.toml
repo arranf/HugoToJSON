@@ -1,6 +1,6 @@
 [package]
 name = "hugo_to_json"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["Arran France <arran@arranfrance.com>"]
 edition = "2018"
 
