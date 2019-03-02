@@ -41,3 +41,11 @@ fn output_destination_is_a_directory() -> Result<(), Box<std::error::Error>> {
 
     Ok(())
 }
+
+// It skips hidden files
+// It correctly finds a deeply nested file
+// It skips everything except .md files
+// The output of a malformed TOML front matter is skipped and a warning occurs
+// The output of a malformed YAML front matter is skipped and a warning occurs
+// It correctly produces JSON for a YAML file
+// It correctly produces JSON for a TOML file
