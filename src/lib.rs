@@ -4,8 +4,6 @@
 extern crate log;
 #[macro_use]
 extern crate serde_derive;
-#[macro_use]
-extern crate structopt;
 
 extern crate strip_markdown;
 extern crate yaml_rust;
@@ -38,13 +36,15 @@ use file_location::*;
 pub fn create_page_index(settings: &Settings) -> Result<TraverseResults, HugotoJsonError> {
     let index = traverse_files(&Path::new(&settings.scan_path))?;
     // This requires partial_eq
-    // let (oks, fails): (Vec<_>, Vec<_>) = index.partition(Result::is_ok);
-    let errors: Vec<OperationResult> = index.iter().filter_map(|e| e.err()).collect(); 
-    let index: Vec<PageIndex> = index.iter().filter_map(|a| a.ok()).collect();
+    let (oks, errors): (Vec<_>, Vec<_>) = index.into_iter().partition(Result::is_ok);
+    let index: Vec<_> = oks.into_iter().map(Result::unwrap).collect();
+    let errors: Vec<_> = errors.into_iter().map(Result::unwrap_err).collect();
+    // let errors: Vec<OperationResult> = index.iter().filter_map(|e| e.err()).collect(); 
+    // let index: Vec<PageIndex> = index.iter().filter_map(|a| a.ok()).collect();
     Ok(TraverseResults::new(index, errors))
 }
 
-fn write_page_index<W: Write>(mut writer: W, serialized_page_index: String) -> Result<(), HugotoJsonError> {
+fn write_page_index<W: Write>(mut writer: W, serialized_page_index: &str) -> Result<(), HugotoJsonError> {
     writer.write_all(serialized_page_index.as_bytes())?;
     Ok(())
 }
@@ -64,8 +64,8 @@ pub fn convert_to_json_and_write(settings: Settings) -> Result<(), HugotoJsonErr
     info!("Writing index to {}", writing_location);
     
     match settings.output {
-        Some(path) => write_page_index(fs::File::create(path)?, index)?,
-        None => write_page_index(io::stdout(), index)?
+        Some(path) => write_page_index(fs::File::create(path)?, &index)?,
+        None => write_page_index(io::stdout(), &index)?
     }
     
     if traverse_results.error_count > 0 {
