@@ -38,7 +38,7 @@ impl ParseError {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Skip {
     reason: String,
     directory: String
@@ -69,7 +69,7 @@ impl Skip {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct PathError {
     reason: String,
     directory: String
