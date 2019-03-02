@@ -3,6 +3,5 @@
 * Command line documentation
 * Switch to command line parsing using StructOpt/Clap
 * Add verbosity flags
-* Strip markdown or convert to HTML
 * Add flag for including drafts
 * Allow directories to be excluded/included

@@ -5,6 +5,7 @@ extern crate log;
 #[macro_use]
 extern crate serde_derive;
 extern crate yaml_rust;
+extern crate strip_markdown;
 
 pub mod hugo_to_json_error;
 pub mod settings;
@@ -19,6 +20,7 @@ use std::path::{Path};
 use toml::Value;
 use walkdir::{DirEntry, WalkDir};
 use yaml_rust::{YamlLoader};
+use strip_markdown::strip_markdown;
 
 use operation_result::*;
 use hugo_to_json_error::*;
@@ -92,6 +94,7 @@ fn process_file(file_location: &FileLocation) -> Result<page_index::PageIndex, O
 fn process_md_file(file_location: &FileLocation) -> Result<page_index::PageIndex, OperationResult> {
     let contents = fs::read_to_string(file_location.absolute_path.to_string())?;
 
+    // Gets the first non-empty line of the file 
     let mut first_line = "";
     let mut lines = contents.lines();
     
@@ -103,14 +106,14 @@ fn process_md_file(file_location: &FileLocation) -> Result<page_index::PageIndex
     }
 
     match first_line.chars().next() {
-        Some('+') => process_toml_front_matter(&contents, &file_location),
-        Some('-') => process_yaml_front_matter(&contents, &file_location),
+        Some('+') => process_md_toml_front_matter(&contents, &file_location),
+        Some('-') => process_md_yaml_front_matter(&contents, &file_location),
         // TODO: JSON frontmatter '{' => process_json_frontmatter()
         _ => Err(OperationResult::Parse(ParseError::new(&file_location.absolute_path, "Could not determine file front matter type.")))
     }
 }
 
-fn process_toml_front_matter(contents: &str, file_location: &FileLocation) -> Result<page_index::PageIndex, OperationResult> {
+fn process_md_toml_front_matter(contents: &str, file_location: &FileLocation) -> Result<page_index::PageIndex, OperationResult> {
     let split_content: Vec<&str> = contents.trim().split(constants::TOML_FENCE).collect();
 
     let length = split_content.len();
@@ -155,12 +158,12 @@ fn process_toml_front_matter(contents: &str, file_location: &FileLocation) -> Re
         .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
         .collect();
     
-    let content = split_content[length - 1].trim().to_owned();
+    let content = strip_markdown(split_content[length - 1].trim());
 
     page_index::PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, &file_location)
 }
 
-fn process_yaml_front_matter(contents: &str, file_location: &FileLocation) -> Result<page_index::PageIndex, OperationResult> {
+fn process_md_yaml_front_matter(contents: &str, file_location: &FileLocation) -> Result<page_index::PageIndex, OperationResult> {
     let split_content: Vec<&str> = contents.trim().split(constants::YAML_FENCE).collect();
     let length = split_content.len();
     if length <= 1 {
@@ -205,7 +208,7 @@ fn process_yaml_front_matter(contents: &str, file_location: &FileLocation) -> Re
         .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
         .collect();
     
-    let content = split_content[length - 1].trim().to_owned();
+    let content = strip_markdown(split_content[length - 1].trim());
 
     PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, &file_location)
 }
@@ -242,7 +245,7 @@ tags:
 ---
 The state of images on the web is pretty rough. What should be an easy goal, showing a user a picture, is...
 "#);
-        let page_index = process_yaml_front_matter(&contents, &build_file_location());
+        let page_index = process_md_yaml_front_matter(&contents, &build_file_location());
         assert!(page_index.is_ok());
         let page_index = page_index.unwrap();
         assert_eq!(page_index.title, "Responsive Blog Images");
@@ -273,7 +276,7 @@ tags:
 ---
 The state of images on the web is pretty rough. What should be an easy goal, showing a user a picture, is...
 "#);
-        let page_index = process_yaml_front_matter(&contents, &build_file_location());
+        let page_index = process_md_yaml_front_matter(&contents, &build_file_location());
         assert!(page_index.is_err());
         // Pattern match the error type
         match page_index.unwrap_err() {
@@ -294,7 +297,7 @@ tags:
   - Hugo
   - Images
 "#);
-        let page_index = process_yaml_front_matter(&contents, &build_file_location());
+        let page_index = process_md_yaml_front_matter(&contents, &build_file_location());
         assert!(page_index.is_ok());
     }
 
@@ -310,7 +313,7 @@ tags
   - Images
 ---
 "#);
-        let page_index = process_yaml_front_matter(&contents, &build_file_location());
+        let page_index = process_md_yaml_front_matter(&contents, &build_file_location());
         assert!(page_index.is_err());
          // Pattern match error
         match page_index.unwrap_err() {
@@ -334,7 +337,7 @@ aliases = ['/evaluating-software-design/']
 
 Design is iterative
 "#);
-        let page_index = process_toml_front_matter(&contents, &build_file_location());
+        let page_index = process_md_toml_front_matter(&contents, &build_file_location());
         assert!(page_index.is_ok());
         let page_index = page_index.unwrap();
         assert_eq!(page_index.title, "Evaluating Software Design");
@@ -362,7 +365,7 @@ tags = ['software development', 'revision', 'design']
 
 Design is iterative
 "#);
-        let page_index = process_toml_front_matter(&contents, &build_file_location());
+        let page_index = process_md_toml_front_matter(&contents, &build_file_location());
         assert!(page_index.is_err());
          // Pattern match error
         match page_index.unwrap_err() {
@@ -383,7 +386,7 @@ tags = ['software development', 'revision', 'design']
 
 Design is iterative
 "#);
-        let page_index = process_toml_front_matter(&contents, &build_file_location());
+        let page_index = process_md_toml_front_matter(&contents, &build_file_location());
         assert!(page_index.is_err());
          // Pattern match error
         match page_index.unwrap_err() {
@@ -404,7 +407,7 @@ tags = ['software development', 'revision', 'design']
 
 Design is iterative
 "#);
-        let page_index = process_toml_front_matter(&contents, &build_file_location());
+        let page_index = process_md_toml_front_matter(&contents, &build_file_location());
         assert!(page_index.is_err());
          // Pattern match error
         match page_index.unwrap_err() {
@@ -426,7 +429,7 @@ tags = ['software development', 'revision', 'design']
 
 Design is iterative
 "#);
-        let page_index = process_toml_front_matter(&contents, &build_file_location());
+        let page_index = process_md_toml_front_matter(&contents, &build_file_location());
         assert!(page_index.is_err());
          // Pattern match error
         match page_index.unwrap_err() {
