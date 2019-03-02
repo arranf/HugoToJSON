@@ -2,7 +2,7 @@ use crate::file_location::FileLocation;
 use crate::constants::*;
 use crate::operation_result::*;
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, PartialEq)]
 pub struct PageIndex {
     pub title: String,
     pub href: String,

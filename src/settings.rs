@@ -1,14 +1,23 @@
+use structopt::StructOpt;
 
+use std::path::PathBuf;
+
+#[derive(Debug, StructOpt)]
+#[structopt(name = "Hugo to JSON", about = "A tool to turn Hugo sites into a JSON representation.")]
 pub struct Settings {
+    /// The path to [Hugo](https://gohugo.io/)'s [contents](https://gohugo.io/content-management/organization/) directory. Defaults to `./content/`
     pub scan_path: String,
-    pub index_path: String,
+    /// The path that index will be output to. If not provided, the library writes to stdout
+    #[structopt(short = "o", parse(from_os_str))]
+    pub output: Option<PathBuf>,
 }
 
 impl Settings {
-    pub fn new(args: &[String]) -> Self {
-        let scan_path = args.get(1).and_then(|v| Some(v.clone())).unwrap_or_else(|| String::from("./content/"));
-        let index_path = args.get(2).and_then(|v| Some(v.clone())).unwrap_or_else(|| String::from("./static/index.json"));
-        Self { scan_path, index_path }
+    /// Creates a 
+    pub fn new(contents_directory: Option<String>, output: Option<PathBuf>) -> Self {
+        let scan_path = contents_directory.unwrap_or_else(|| String::from("./content/"));
+        let output = output;
+        Self { scan_path, output }
     }    
 }
 
@@ -18,23 +27,20 @@ mod tests {
 
     #[test]
     fn no_args_produces_defaults() {
-        let args = [];
-        let settings = Settings::new(&args);
+        let settings = Settings::new(None, None);
         assert_eq!(settings.scan_path, "./content/");
-        assert_eq!(settings.index_path, "./static/index.json");
+        assert_eq!(settings.output, None);
     }
 
     #[test]
     fn first_arg_sets_scan_path() {
-        let args = [String::from("This is the path of the executable"), String::from("hello")];
-        let settings = Settings::new(&args);
+        let settings = Settings::new(Some(String::from("hello")), None);
         assert_eq!(settings.scan_path, "hello");
     }
 
     #[test]
     fn second_arg_sets_index_path() {
-        let args = [String::from("This is the path of the executable"), String::from("hello"), String::from("world")];
-        let settings = Settings::new(&args);
-        assert_eq!(settings.index_path, "world");
+         let settings = Settings::new(Some(String::from("hello")), Some(PathBuf::from("world")));
+        assert_eq!(settings.scan_path, "world");
     }
 }

@@ -5,15 +5,16 @@ authors = ["Arran France <arran@arranfrance.com>"]
 edition = "2018"
 
 [dependencies]
+env_logger = "0.6.0"
+log = "0.4.6"
+strip_markdown = "0.1"
 toml = "0.4.10"
 yaml-rust = "0.4"
 walkdir = "2"
 serde_json = "1.0"
 serde = "1.0.89"
 serde_derive = "1.0"
-log = "0.4.6"
-env_logger = "0.6.0"
-strip_markdown = "0.1"
+structopt = "0.2"
 
 [dev-dependencies]
 assert_cmd = "0.11.0"
