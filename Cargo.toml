@@ -7,7 +7,7 @@ authors = ["Arran France <arran@arranfrance.com>"]
 license = "MIT"
 edition = "2018"
 readme = "README.md"
-repository = "https://crates.io/crates/hugo_to_json"
+repository = "https://github.com/arranf/HugoToJSON"
 categories = ["command-line-utilities"]
 
 [dependencies]
