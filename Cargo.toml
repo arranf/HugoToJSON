@@ -6,6 +6,7 @@ keywords = ["Lunr", "Hugo", "JSON"]
 authors = ["Arran France <arran@arranfrance.com>"]
 license = "MIT"
 edition = "2018"
+readme = "README.md"
 
 [dependencies]
 env_logger = "0.6.0"

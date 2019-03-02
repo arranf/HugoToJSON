@@ -9,12 +9,12 @@ Pull requests are welcome. A list of goals and work to be done is available in `
 It currently supports `.md` files and both YAML and TOML front matter.
 
 ## Using
-`hugo_to_json HUGO_CONTENT_DIRECTORY OUTPUT_LOCATION`
+`hugo_to_json HUGO_CONTENT_DIRECTORY -o OUTPUT_LOCATION`
 
 Example usage is shown below.
-`hugo_to_json example/blog/content example/blog/static/index.json`
+`hugo_to_json example/blog/content -o example/blog/static/index.json`
 
-Defaults to `./content` for the content directory and `./static/index.json` for the index output.
+Defaults to `./content` for the content directory and stdout for the index output.
 
 ## Fetching the Latest Version
 
