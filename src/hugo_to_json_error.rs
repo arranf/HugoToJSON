@@ -63,7 +63,7 @@ impl fmt::Display for HugotoJsonError {
         match *self {
             HugotoJsonError::Io(ref err) => write!(f, "IO error: {}", err),
             HugotoJsonError::Meta(ref err) => write!(f, "Serialization error: {}", err),
-            HugotoJsonError::Serialization(ref err) => write!(f, "Serialization error: {}", err),
+            HugotoJsonError::Serialization(ref err) => write!(f, "Serialization error: {}", err)
         }
     }
 }

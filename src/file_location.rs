@@ -2,7 +2,7 @@ use crate::constants;
 use crate::operation_result::*;
 
 use std::fmt;
-use std::path::{Path,Component};
+use std::path::{PathBuf, Component};
 
 use walkdir::{DirEntry};
 
@@ -15,7 +15,7 @@ pub struct FileLocation {
 }
 
 impl FileLocation {
-    pub fn new (file: &DirEntry, content_dir: &Path) -> Result<Self, OperationResult> {
+    pub fn new (file: &DirEntry, content_dir: &PathBuf) -> Result<Self, OperationResult> {
         if file.file_type().is_dir() {
             return Err(OperationResult::Skip(Skip::new(file.path().to_str().unwrap_or_default(), "Not a file")));
         }
