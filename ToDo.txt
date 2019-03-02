@@ -1,7 +1,4 @@
-* Integration Tests
 * Publish on Crates.io
-* Command line documentation
-* Switch to command line parsing using StructOpt/Clap
-* Add verbosity flags
+* Friendlier error messages using failure/exitfailure
 * Add flag for including drafts
 * Allow directories to be excluded/included
