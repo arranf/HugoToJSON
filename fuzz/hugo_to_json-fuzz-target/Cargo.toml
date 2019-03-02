@@ -1,0 +1,10 @@
+[package]
+name = "hugo_to_json-fuzz-target"
+version = "0.1.0"
+authors = ["Arran France <arranf@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+afl = "0.4"
+hugo_to_json = "0.3.1"
+tempfile = "3"
