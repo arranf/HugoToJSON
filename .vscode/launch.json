@@ -18,19 +18,19 @@
                     "kind": "bin"
                 }
             },
-            "args": ["../blog/content", "../blog/static/index.json"],
+            "args": ["../blog/content", "-o ../blog/static/index.json"],
             "cwd": "${workspaceFolder}"
         },
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'hugo_lunr'",
+            "name": "Debug unit tests in executable 'hugo_to_json'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=hugo_lunr",
-                    "--package=hugo_lunr"
+                    "--bin=hugo_to_json",
+                    "--package=hugo_to_json"
                 ],
                 "filter": {
                     "kind": "bin"

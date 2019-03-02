@@ -18,7 +18,7 @@ mod operation_result;
 mod traverse_results;
 mod traverser;
 
-use std::fs;
+use std::fs::{File, create_dir_all};
 use std::path::PathBuf;
 use std::io::{self, Write};
 
@@ -48,17 +48,16 @@ pub fn convert_to_json_and_write(contents_directory: PathBuf, output_location: O
     let traverse_results = create_page_index(contents_directory)?;
     let index = serde_json::to_string(&traverse_results.page_index)?;
 
+    // Logging
     let writing_to;
-    
     match output_location {
         Some(ref path) => writing_to = path.to_string_lossy().into_owned(),
         None => writing_to = String::from("stdout")
     }
-    
     info!("Writing index to {}", writing_to);
     
     match output_location {
-        Some(path) => write_page_index(fs::File::create(path)?, &index)?,
+        Some(path) => { create_dir_all(&path.with_file_name(constants::EMPTY_STRING))?; write_page_index(File::create(&path)?, &index)? },
         None => write_page_index(io::stdout(), &index)?
     }
     

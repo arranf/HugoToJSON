@@ -100,7 +100,7 @@ impl Traverser {
             return Err(OperationResult::Parse(ParseError::new(&file_location.absolute_path, "Could not split on TOML fence.")));
         }
 
-        let front_matter = split_content[length - 2].trim().parse::<Value>().map_err(|_| ParseError::new(&file_location.absolute_path, "Could parse TOML front matter."))?;   
+        let front_matter = split_content[length - 2].trim().parse::<Value>().map_err(|_| ParseError::new(&file_location.absolute_path, "Could not parse TOML front matter."))?;   
         let is_draft =  front_matter.get(constants::DRAFT).and_then(|v| v.as_bool()).unwrap_or(false);
 
         // TODO: Add a flag to allow indexing drafts
@@ -151,9 +151,9 @@ impl Traverser {
 
         let front_matter = split_content[1].trim();
         let front_matter = YamlLoader::load_from_str(front_matter)
-            .map_err(|_| ParseError::new(&file_location.absolute_path, "Failed to get front matter."))?;
+            .map_err(|_| ParseError::new(&file_location.absolute_path, "Could not parse YAML front matter."))?;
         let front_matter = front_matter.first()
-            .ok_or_else(| | ParseError::new(&file_location.absolute_path, "Failed to get front matter."))?;
+            .ok_or_else(| | ParseError::new(&file_location.absolute_path, "Could not parse YAML front matter."))?;
 
         let is_draft =  front_matter[constants::DRAFT].as_bool().unwrap_or(false);
 
