@@ -1,12 +1,12 @@
-use std::io;
 use std::error;
 use std::fmt;
+use std::io;
 
 #[derive(Debug)]
 pub struct ParseError {
     info: String,
     directory: String,
-    error: Option<Box<dyn error::Error+Send+Sync>>
+    error: Option<Box<dyn error::Error + Send + Sync>>,
 }
 
 impl fmt::Display for ParseError {
@@ -23,17 +23,17 @@ impl error::Error for ParseError {
     fn cause(&self) -> Option<&dyn error::Error> {
         match &self.error {
             None => None,
-            Some(v) => v.cause()
+            Some(v) => v.cause(),
         }
     }
 }
 
 impl ParseError {
-    pub fn new (directory: &str, info: &str) -> Self {
+    pub fn new(directory: &str, info: &str) -> Self {
         Self {
             directory: directory.to_owned(),
             info: info.to_owned(),
-            error: None
+            error: None,
         }
     }
 }
@@ -41,7 +41,7 @@ impl ParseError {
 #[derive(Debug, PartialEq)]
 pub struct Skip {
     reason: String,
-    directory: String
+    directory: String,
 }
 
 impl fmt::Display for Skip {
@@ -61,7 +61,7 @@ impl error::Error for Skip {
 }
 
 impl Skip {
-    pub fn new (directory: &str, reason: &str) -> Self {
+    pub fn new(directory: &str, reason: &str) -> Self {
         Self {
             directory: directory.to_owned(),
             reason: reason.to_owned(),
@@ -72,7 +72,7 @@ impl Skip {
 #[derive(Debug, PartialEq)]
 pub struct PathError {
     reason: String,
-    directory: String
+    directory: String,
 }
 
 impl fmt::Display for PathError {
@@ -92,7 +92,7 @@ impl error::Error for PathError {
 }
 
 impl PathError {
-    pub fn new (directory: &str, reason: &str) -> Self {
+    pub fn new(directory: &str, reason: &str) -> Self {
         Self {
             directory: directory.to_owned(),
             reason: reason.to_owned(),
@@ -153,19 +153,19 @@ impl error::Error for OperationResult {
             OperationResult::Io(ref err) => err.description(),
             OperationResult::Parse(ref err) => err.description(),
             OperationResult::Skip(ref err) => err.description(),
-            OperationResult::Path(ref err) => err.description()
+            OperationResult::Path(ref err) => err.description(),
         }
     }
 
     fn cause(&self) -> Option<&error::Error> {
         match *self {
             // N.B. Both of these implicitly cast `err` from their concrete
-            // types to a trait object `&Error`. This works because both error 
+            // types to a trait object `&Error`. This works because both error
             // types implement `Error`.
             OperationResult::Io(ref err) => Some(err),
             OperationResult::Parse(ref err) => Some(err),
             OperationResult::Skip(ref err) => Some(err),
-            OperationResult::Path(ref err) => Some(err)
+            OperationResult::Path(ref err) => Some(err),
         }
     }
 }

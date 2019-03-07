@@ -1,5 +1,5 @@
-use crate::file_location::FileLocation;
 use crate::constants::*;
+use crate::file_location::FileLocation;
 use crate::operation_result::*;
 
 #[derive(Serialize, Debug, PartialEq)]
@@ -22,24 +22,67 @@ pub struct PageIndex {
 
 impl PageIndex {
     #![allow(clippy::too_many_arguments)]
-    pub fn new (title: Option<&str>, slug: Option<&str>, date: Option<&str>, description: Option<&str>, categories: Vec<String>, series: Vec<String>, tags: Vec<String>, keywords: Vec<String>, content: String, file_location: &FileLocation) -> Result<Self, OperationResult> {
-        
+    pub fn new(
+        title: Option<&str>,
+        slug: Option<&str>,
+        date: Option<&str>,
+        description: Option<&str>,
+        categories: Vec<String>,
+        series: Vec<String>,
+        tags: Vec<String>,
+        keywords: Vec<String>,
+        content: String,
+        file_location: &FileLocation,
+    ) -> Result<Self, OperationResult> {
         let title = title
-            .ok_or_else(| | OperationResult::Parse(ParseError::new(&file_location.absolute_path, "Could not read title from front matter")))?
-            .trim().to_owned();
+            .ok_or_else(|| {
+                OperationResult::Parse(ParseError::new(
+                    &file_location.absolute_path,
+                    "Could not read title from front matter",
+                ))
+            })?
+            .trim()
+            .to_owned();
 
         let date = date
-            .ok_or_else(| | OperationResult::Parse(ParseError::new(&file_location.absolute_path, "Could not read date from front matter")))?
-            .trim().to_owned();
+            .ok_or_else(|| {
+                OperationResult::Parse(ParseError::new(
+                    &file_location.absolute_path,
+                    "Could not read date from front matter",
+                ))
+            })?
+            .trim()
+            .to_owned();
 
         let slug = slug
-            .ok_or_else(| | OperationResult::Parse(ParseError::new(&file_location.absolute_path, "Could not read slug from front matter")))?
+            .ok_or_else(|| {
+                OperationResult::Parse(ParseError::new(
+                    &file_location.absolute_path,
+                    "Could not read slug from front matter",
+                ))
+            })?
             .trim();
 
         let description = description.unwrap_or("").to_owned();
-        let href = [FORWARD_SLASH, &file_location.relative_directory_to_content, FORWARD_SLASH, slug].join(EMPTY_STRING);
+        let href = [
+            FORWARD_SLASH,
+            &file_location.relative_directory_to_content,
+            FORWARD_SLASH,
+            slug,
+        ]
+        .join(EMPTY_STRING);
 
-        Ok(Self{title, date, description, categories, tags, series, keywords, href, content})
+        Ok(Self {
+            title,
+            date,
+            description,
+            categories,
+            tags,
+            series,
+            keywords,
+            href,
+            content,
+        })
     }
 }
 
@@ -48,8 +91,12 @@ mod tests {
     use super::*;
 
     fn build_file_location() -> FileLocation {
-        FileLocation {extension: String::from("md"), relative_directory_to_content: String::from("post"), 
-            absolute_path: String::from("/home/blog/content/post/example.md"), file_name: String::from("example.md") }
+        FileLocation {
+            extension: String::from("md"),
+            relative_directory_to_content: String::from("post"),
+            absolute_path: String::from("/home/blog/content/post/example.md"),
+            file_name: String::from("example.md"),
+        }
     }
 
     #[test]
@@ -64,7 +111,18 @@ mod tests {
         let series = Vec::new();
         let content = "A lot of content".to_owned();
 
-        let page_index = PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, &build_file_location());
+        let page_index = PageIndex::new(
+            title,
+            slug,
+            date,
+            description,
+            categories,
+            series,
+            tags,
+            keywords,
+            content,
+            &build_file_location(),
+        );
         assert!(page_index.is_ok());
         assert_eq!(page_index.unwrap().href, "/post/my-example-post")
     }
@@ -81,7 +139,19 @@ mod tests {
         let series = Vec::new();
         let content = "A lot of content".to_owned();
 
-        assert!(PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, &build_file_location()).is_err());
+        assert!(PageIndex::new(
+            title,
+            slug,
+            date,
+            description,
+            categories,
+            series,
+            tags,
+            keywords,
+            content,
+            &build_file_location()
+        )
+        .is_err());
     }
 
     #[test]
@@ -96,7 +166,19 @@ mod tests {
         let series = Vec::new();
         let content = "A lot of content".to_owned();
 
-        assert!(PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, &build_file_location()).is_err());
+        assert!(PageIndex::new(
+            title,
+            slug,
+            date,
+            description,
+            categories,
+            series,
+            tags,
+            keywords,
+            content,
+            &build_file_location()
+        )
+        .is_err());
     }
 
     #[test]
@@ -111,6 +193,18 @@ mod tests {
         let series = Vec::new();
         let content = "A lot of content".to_owned();
 
-        assert!(PageIndex::new(title, slug, date, description, categories, series, tags, keywords, content, &build_file_location()).is_err());
+        assert!(PageIndex::new(
+            title,
+            slug,
+            date,
+            description,
+            categories,
+            series,
+            tags,
+            keywords,
+            content,
+            &build_file_location()
+        )
+        .is_err());
     }
 }

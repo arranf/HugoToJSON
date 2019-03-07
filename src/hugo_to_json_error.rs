@@ -1,11 +1,11 @@
-use std::io;
 use std::error;
 use std::fmt;
+use std::io;
 
 #[derive(Debug)]
 pub struct Meta {
     reason: String,
-    count: usize
+    count: usize,
 }
 
 impl fmt::Display for Meta {
@@ -25,7 +25,7 @@ impl error::Error for Meta {
 }
 
 impl Meta {
-    pub fn new (count: usize, reason: &str) -> Self {
+    pub fn new(count: usize, reason: &str) -> Self {
         Self {
             count: count,
             reason: reason.to_owned(),
@@ -37,7 +37,7 @@ impl Meta {
 pub enum HugotoJsonError {
     Io(io::Error),
     Meta(Meta),
-    Serialization(serde_json::error::Error)
+    Serialization(serde_json::error::Error),
 }
 
 impl From<io::Error> for HugotoJsonError {
@@ -63,7 +63,7 @@ impl fmt::Display for HugotoJsonError {
         match *self {
             HugotoJsonError::Io(ref err) => write!(f, "IO error: {}", err),
             HugotoJsonError::Meta(ref err) => write!(f, "Serialization error: {}", err),
-            HugotoJsonError::Serialization(ref err) => write!(f, "Serialization error: {}", err)
+            HugotoJsonError::Serialization(ref err) => write!(f, "Serialization error: {}", err),
         }
     }
 }
@@ -82,11 +82,11 @@ impl error::Error for HugotoJsonError {
     fn cause(&self) -> Option<&error::Error> {
         match *self {
             // N.B. Both of these implicitly cast `err` from their concrete
-            // types to a trait object `&Error`. This works because both error 
+            // types to a trait object `&Error`. This works because both error
             // types implement `Error`.
             HugotoJsonError::Io(ref err) => Some(err),
             HugotoJsonError::Meta(ref err) => Some(err),
-            HugotoJsonError::Serialization(ref err) => Some(err)
+            HugotoJsonError::Serialization(ref err) => Some(err),
         }
     }
 }

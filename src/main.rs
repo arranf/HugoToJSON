@@ -1,15 +1,14 @@
 #![warn(clippy::all, clippy::pedantic)]
-
 #![macro_use]
-extern crate structopt;
 extern crate env_logger;
 extern crate hugo_to_json;
+extern crate structopt;
 
 mod settings;
 
-use structopt::StructOpt;
 use env_logger::Env;
-use hugo_to_json::{settings::*, hugo_to_json_error::*};
+use hugo_to_json::{hugo_to_json_error::*, settings::*};
+use structopt::StructOpt;
 
 fn main() -> Result<(), HugotoJsonError> {
     env_logger::Builder::from_env(Env::new().filter_or("HUGO_TO_JSON_LOG", "info")).init();
