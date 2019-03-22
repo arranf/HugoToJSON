@@ -1,6 +1,7 @@
 # HugoToJSON
 
 [![Build Status](https://travis-ci.com/arranf/HugoToJSON.svg?branch=master)](https://travis-ci.com/arranf/HugoToJSON)
+[![Crate](https://img.shields.io/crates/v/hugo_to_json.svg)](https://crates.io/crates/hugo_to_json)
 
 A utility to produce a JSON representation of the key front matter and contents of Hugo documents. It's main intent is to produce JSON to be used by [Lunr](https://lunrjs.com/) (and [Lunr-like](http://elasticlunr.com/) packages) to support search on a static Hugo site. It's designed to be a fast and modern alternative to the now unsupported [hugo_lunr Node tool](https://www.npmjs.com/package/hugo-lunr).
 
@@ -27,7 +28,7 @@ set -e
 # Based on
 #https://blog.markvincze.com/download-artifacts-from-a-latest-github-release-in-sh-and-powershell/
 
-LATEST_RELEASE=$(curl -L -s -H 'Accept: application/json' https://github.com/arranf/HugoLunr/releases/latest)
+LATEST_RELEASE=$(curl -L -s -H 'Accept: application/json' https://github.com/arranf/HugoToJSON/releases/latest)
 # The releases are returned in the format {"id":3622206,"tag_name":"hello-1.0.0.11",...}, we have to extract the tag_name.
 LATEST_VERSION=$(echo $LATEST_RELEASE | sed -e 's/.*"tag_name":"\([^"]*\)".*/\1/')
 ARTIFACT_URL="https://github.com/arranf/HugoToJSON/releases/download/$LATEST_VERSION/hugo_to_json"
