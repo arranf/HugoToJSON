@@ -6,7 +6,7 @@ use std::io;
 pub struct ParseError {
     info: String,
     directory: String,
-    error: Option<Box<dyn error::Error + Send + Sync>>,
+    error: Option<Box<dyn error::Error + Send + Sync + 'static>>,
 }
 
 impl fmt::Display for ParseError {
@@ -20,7 +20,7 @@ impl error::Error for ParseError {
         &self.info
     }
 
-    fn cause(&self) -> Option<&dyn error::Error> {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match &self.error {
             None => None,
             Some(v) => v.source(),
@@ -55,7 +55,7 @@ impl error::Error for Skip {
         &self.reason
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         None
     }
 }
@@ -86,7 +86,7 @@ impl error::Error for PathError {
         &self.reason
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         None
     }
 }
@@ -157,7 +157,7 @@ impl error::Error for OperationResult {
         }
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match *self {
             // N.B. Both of these implicitly cast `err` from their concrete
             // types to a trait object `&Error`. This works because both error
