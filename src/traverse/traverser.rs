@@ -5,10 +5,13 @@ use yaml_rust::YamlLoader;
 
 use std::fs;
 use std::path::PathBuf;
+use std::sync::mpsc::channel;
+use threadpool::ThreadPool;
 
 use crate::constants;
 use crate::file_location::*;
 use crate::hugo_to_json_error::*;
+use crate::num_cpus;
 use crate::operation_result::*;
 use crate::page_index::PageIndex;
 
@@ -23,10 +26,15 @@ impl Traverser {
         }
     }
 
+    /// Uses multiple threads to traverse
     pub fn traverse_files(
         &self,
     ) -> Result<Vec<Result<PageIndex, OperationResult>>, HugotoJsonError> {
         let mut index = Vec::new();
+
+        let thread_count = num_cpus::get();
+        let pool = ThreadPool::new(thread_count);
+        let (tx, rx) = channel();
 
         fs::metadata(&self.contents_directory_path)?;
 
@@ -41,26 +49,14 @@ impl Traverser {
                         continue;
                     }
 
+                    let tx = tx.clone();
                     let file_location = file_location.unwrap();
-                    debug!("Processing {}", &file_location);
 
-                    let process_result = self.process_file(&file_location);
-                    match process_result {
-                        Err(OperationResult::Skip(ref err)) => warn!("{}", err), // Skips don't need to be handled
-                        Err(OperationResult::Path(ref err)) => {
-                            error!("{}", err);
-                            index.push(process_result);
-                        }
-                        Err(OperationResult::Parse(ref err)) => {
-                            error!("{}", err);
-                            index.push(process_result);
-                        }
-                        Err(OperationResult::Io(ref err)) => {
-                            error!("{}", err);
-                            index.push(process_result);
-                        }
-                        Ok(_) => index.push(process_result),
-                    }
+                    pool.execute(move || {
+                        debug!("Processing {}", &file_location);
+                        let process_result = process_file(&file_location);
+                        tx.send(process_result).expect("Channel exists");
+                    });
                 }
                 Err(error) => {
                     if let Some(io_error) = error.into_io_error() {
@@ -71,224 +67,246 @@ impl Traverser {
                 }
             }
         }
-        Ok(index)
-    }
 
-    fn process_file(&self, file_location: &FileLocation) -> Result<PageIndex, OperationResult> {
-        match file_location.extension.as_ref() {
-            constants::MARKDOWN_EXTENSION => self.process_md_file(&file_location),
-            // TODO: .html files
-            _ => Err(OperationResult::Path(PathError::new(
-                &file_location.absolute_path,
-                "Not a compatible file extension.",
-            ))),
-            // TODO: Handle None
-        }
-    }
+        // This sender must be dropped as otherwise the iterator blocks as it's possible for the channel to still send messages
+        drop(tx);
 
-    fn process_md_file(&self, file_location: &FileLocation) -> Result<PageIndex, OperationResult> {
-        let contents = fs::read_to_string(file_location.absolute_path.to_string())?;
-
-        // Gets the first non-empty line of the file
-        let mut first_line = "";
-        let mut lines = contents.lines();
-
-        while let Some(line) = lines.next() {
-            if !line.trim().is_empty() {
-                first_line = line;
-                break;
+        for result in rx {
+            match result {
+                Err(OperationResult::Skip(ref err)) => warn!("{}", err), // Skips don't need to be handled
+                Err(OperationResult::Path(ref err)) => {
+                    error!("{}", err);
+                    index.push(result);
+                }
+                Err(OperationResult::Parse(ref err)) => {
+                    error!("{}", err);
+                    index.push(result);
+                }
+                Err(OperationResult::Io(ref err)) => {
+                    error!("{}", err);
+                    index.push(result);
+                }
+                Ok(_) => index.push(result),
             }
         }
 
-        match first_line.chars().next() {
-            Some('+') => self.process_md_toml_front_matter(&contents, &file_location),
-            Some('-') => self.process_md_yaml_front_matter(&contents, &file_location),
-            // TODO: JSON frontmatter '{' => process_json_frontmatter()
-            _ => Err(OperationResult::Parse(ParseError::new(
-                &file_location.absolute_path,
-                "Could not determine file front matter type.",
-            ))),
+        pool.join();
+        Ok(index)
+    }
+}
+
+fn process_file(file_location: &FileLocation) -> Result<PageIndex, OperationResult> {
+    match file_location.extension.as_ref() {
+        constants::MARKDOWN_EXTENSION => process_md_file(&file_location),
+        // TODO: .html files
+        _ => Err(OperationResult::Path(PathError::new(
+            &file_location.absolute_path,
+            "Not a compatible file extension.",
+        ))),
+        // TODO: Handle None
+    }
+}
+
+fn process_md_file(file_location: &FileLocation) -> Result<PageIndex, OperationResult> {
+    let contents = fs::read_to_string(file_location.absolute_path.to_string())?;
+
+    // Gets the first non-empty line of the file
+    let mut first_line = "";
+    let mut lines = contents.lines();
+
+    while let Some(line) = lines.next() {
+        if !line.trim().is_empty() {
+            first_line = line;
+            break;
         }
     }
 
-    fn process_md_toml_front_matter(
-        &self,
-        contents: &str,
-        file_location: &FileLocation,
-    ) -> Result<PageIndex, OperationResult> {
-        let split_content: Vec<&str> = contents.trim().split(constants::TOML_FENCE).collect();
+    match first_line.chars().next() {
+        Some('+') => process_md_toml_front_matter(&contents, &file_location),
+        Some('-') => process_md_yaml_front_matter(&contents, &file_location),
+        // TODO: JSON frontmatter '{' => process_json_frontmatter()
+        _ => Err(OperationResult::Parse(ParseError::new(
+            &file_location.absolute_path,
+            "Could not determine file front matter type.",
+        ))),
+    }
+}
 
-        let length = split_content.len();
-        if length <= 1 {
-            return Err(OperationResult::Parse(ParseError::new(
-                &file_location.absolute_path,
-                "Could not split on TOML fence.",
-            )));
-        }
+fn process_md_toml_front_matter(
+    contents: &str,
+    file_location: &FileLocation,
+) -> Result<PageIndex, OperationResult> {
+    let split_content: Vec<&str> = contents.trim().split(constants::TOML_FENCE).collect();
 
-        let front_matter = split_content[length - 2]
-            .trim()
-            .parse::<Value>()
-            .map_err(|_| {
-                ParseError::new(
-                    &file_location.absolute_path,
-                    "Could not parse TOML front matter.",
-                )
-            })?;
-        let is_draft = front_matter
-            .get(constants::DRAFT)
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-
-        // TODO: Add a flag to allow indexing drafts
-        if is_draft {
-            return Err(OperationResult::Skip(Skip::new(
-                &file_location.absolute_path,
-                "Is draft.",
-            )));
-        }
-
-        let title = front_matter.get(constants::TITLE).and_then(|v| v.as_str());
-        let slug = front_matter.get(constants::SLUG).and_then(|v| v.as_str());
-        let date = front_matter.get(constants::DATE).and_then(|v| v.as_str());
-        let description = front_matter
-            .get(constants::DESCRIPTION)
-            .and_then(|v| v.as_str());
-
-        let categories: Vec<String> = front_matter
-            .get(constants::CATEGORIES)
-            .and_then(|v| v.as_array())
-            .unwrap_or(&Vec::new())
-            .iter()
-            .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
-            .collect();
-
-        let series: Vec<String> = front_matter
-            .get(constants::SERIES)
-            .and_then(|v| v.as_array())
-            .unwrap_or(&Vec::new())
-            .iter()
-            .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
-            .collect();
-
-        let tags: Vec<String> = front_matter
-            .get(constants::TAGS)
-            .and_then(|v| v.as_array())
-            .unwrap_or(&Vec::new())
-            .iter()
-            .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
-            .collect();
-
-        let keywords: Vec<String> = front_matter
-            .get(constants::KEYWORDS)
-            .and_then(|v| v.as_array())
-            .unwrap_or(&Vec::new())
-            .iter()
-            .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
-            .collect();
-
-        let content = strip_markdown(split_content[length - 1].trim());
-
-        PageIndex::new(
-            title,
-            slug,
-            date,
-            description,
-            categories,
-            series,
-            tags,
-            keywords,
-            content,
-            &file_location,
-        )
+    let length = split_content.len();
+    if length <= 1 {
+        return Err(OperationResult::Parse(ParseError::new(
+            &file_location.absolute_path,
+            "Could not split on TOML fence.",
+        )));
     }
 
-    fn process_md_yaml_front_matter(
-        &self,
-        contents: &str,
-        file_location: &FileLocation,
-    ) -> Result<PageIndex, OperationResult> {
-        let split_content: Vec<&str> = contents.trim().split(constants::YAML_FENCE).collect();
-        let length = split_content.len();
-        if length <= 1 {
-            return Err(OperationResult::Parse(ParseError::new(
-                &file_location.absolute_path,
-                "Could not split on YAML fence.",
-            )));
-        }
-
-        let front_matter = split_content[1].trim();
-        let front_matter = YamlLoader::load_from_str(front_matter).map_err(|_| {
+    let front_matter = split_content[length - 2]
+        .trim()
+        .parse::<Value>()
+        .map_err(|_| {
             ParseError::new(
                 &file_location.absolute_path,
-                "Could not parse YAML front matter.",
+                "Could not parse TOML front matter.",
             )
         })?;
-        let front_matter = front_matter.first().ok_or_else(|| {
-            ParseError::new(
-                &file_location.absolute_path,
-                "Could not parse YAML front matter.",
-            )
-        })?;
+    let is_draft = front_matter
+        .get(constants::DRAFT)
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
 
-        let is_draft = front_matter[constants::DRAFT].as_bool().unwrap_or(false);
-
-        // TODO: Add a flag to allow indexing drafts
-        if is_draft {
-            return Err(OperationResult::Skip(Skip::new(
-                &file_location.absolute_path,
-                "Is draft.",
-            )));
-        }
-
-        let title = front_matter[constants::TITLE].as_str();
-        let slug = front_matter[constants::SLUG].as_str();
-        let description = front_matter[constants::DESCRIPTION].as_str();
-        let date = front_matter[constants::DATE].as_str();
-
-        let series: Vec<String> = front_matter[constants::SERIES]
-            .as_vec()
-            .unwrap_or(&Vec::new())
-            .iter()
-            .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
-            .collect();
-
-        let categories: Vec<String> = front_matter[constants::CATEGORIES]
-            .as_vec()
-            .unwrap_or(&Vec::new())
-            .iter()
-            .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
-            .collect();
-
-        let tags: Vec<String> = front_matter[constants::TAGS]
-            .as_vec()
-            .unwrap_or(&Vec::new())
-            .iter()
-            .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
-            .collect();
-
-        let keywords: Vec<String> = front_matter[constants::KEYWORDS]
-            .as_vec()
-            .unwrap_or(&Vec::new())
-            .iter()
-            .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
-            .collect();
-
-        let content = strip_markdown(split_content[length - 1].trim());
-
-        PageIndex::new(
-            title,
-            slug,
-            date,
-            description,
-            categories,
-            series,
-            tags,
-            keywords,
-            content,
-            &file_location,
-        )
+    // TODO: Add a flag to allow indexing drafts
+    if is_draft {
+        return Err(OperationResult::Skip(Skip::new(
+            &file_location.absolute_path,
+            "Is draft.",
+        )));
     }
+
+    let title = front_matter.get(constants::TITLE).and_then(|v| v.as_str());
+    let slug = front_matter.get(constants::SLUG).and_then(|v| v.as_str());
+    let date = front_matter.get(constants::DATE).and_then(|v| v.as_str());
+    let description = front_matter
+        .get(constants::DESCRIPTION)
+        .and_then(|v| v.as_str());
+
+    let categories: Vec<String> = front_matter
+        .get(constants::CATEGORIES)
+        .and_then(|v| v.as_array())
+        .unwrap_or(&Vec::new())
+        .iter()
+        .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
+        .collect();
+
+    let series: Vec<String> = front_matter
+        .get(constants::SERIES)
+        .and_then(|v| v.as_array())
+        .unwrap_or(&Vec::new())
+        .iter()
+        .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
+        .collect();
+
+    let tags: Vec<String> = front_matter
+        .get(constants::TAGS)
+        .and_then(|v| v.as_array())
+        .unwrap_or(&Vec::new())
+        .iter()
+        .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
+        .collect();
+
+    let keywords: Vec<String> = front_matter
+        .get(constants::KEYWORDS)
+        .and_then(|v| v.as_array())
+        .unwrap_or(&Vec::new())
+        .iter()
+        .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
+        .collect();
+
+    let content = strip_markdown(split_content[length - 1].trim());
+
+    PageIndex::new(
+        title,
+        slug,
+        date,
+        description,
+        categories,
+        series,
+        tags,
+        keywords,
+        content,
+        &file_location,
+    )
+}
+
+fn process_md_yaml_front_matter(
+    contents: &str,
+    file_location: &FileLocation,
+) -> Result<PageIndex, OperationResult> {
+    let split_content: Vec<&str> = contents.trim().split(constants::YAML_FENCE).collect();
+    let length = split_content.len();
+    if length <= 1 {
+        return Err(OperationResult::Parse(ParseError::new(
+            &file_location.absolute_path,
+            "Could not split on YAML fence.",
+        )));
+    }
+
+    let front_matter = split_content[1].trim();
+    let front_matter = YamlLoader::load_from_str(front_matter).map_err(|_| {
+        ParseError::new(
+            &file_location.absolute_path,
+            "Could not parse YAML front matter.",
+        )
+    })?;
+    let front_matter = front_matter.first().ok_or_else(|| {
+        ParseError::new(
+            &file_location.absolute_path,
+            "Could not parse YAML front matter.",
+        )
+    })?;
+
+    let is_draft = front_matter[constants::DRAFT].as_bool().unwrap_or(false);
+
+    // TODO: Add a flag to allow indexing drafts
+    if is_draft {
+        return Err(OperationResult::Skip(Skip::new(
+            &file_location.absolute_path,
+            "Is draft.",
+        )));
+    }
+
+    let title = front_matter[constants::TITLE].as_str();
+    let slug = front_matter[constants::SLUG].as_str();
+    let description = front_matter[constants::DESCRIPTION].as_str();
+    let date = front_matter[constants::DATE].as_str();
+
+    let series: Vec<String> = front_matter[constants::SERIES]
+        .as_vec()
+        .unwrap_or(&Vec::new())
+        .iter()
+        .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
+        .collect();
+
+    let categories: Vec<String> = front_matter[constants::CATEGORIES]
+        .as_vec()
+        .unwrap_or(&Vec::new())
+        .iter()
+        .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
+        .collect();
+
+    let tags: Vec<String> = front_matter[constants::TAGS]
+        .as_vec()
+        .unwrap_or(&Vec::new())
+        .iter()
+        .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
+        .collect();
+
+    let keywords: Vec<String> = front_matter[constants::KEYWORDS]
+        .as_vec()
+        .unwrap_or(&Vec::new())
+        .iter()
+        .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
+        .collect();
+
+    let content = strip_markdown(split_content[length - 1].trim());
+
+    PageIndex::new(
+        title,
+        slug,
+        date,
+        description,
+        categories,
+        series,
+        tags,
+        keywords,
+        content,
+        &file_location,
+    )
 }
 
 fn is_hidden(entry: &DirEntry) -> bool {
@@ -311,10 +329,6 @@ mod test {
         }
     }
 
-    fn build_traverser() -> Traverser {
-        Traverser::new(PathBuf::from("/home/blog/content"))
-    }
-
     #[test]
     fn page_index_from_yaml() {
         let contents = String::from(r#"
@@ -331,8 +345,7 @@ tags:
 ---
 The state of images on the web is pretty rough. What should be an easy goal, showing a user a picture, is...
 "#);
-        let traverser = build_traverser();
-        let page_index = traverser.process_md_yaml_front_matter(&contents, &build_file_location());
+        let page_index = process_md_yaml_front_matter(&contents, &build_file_location());
         assert!(page_index.is_ok());
         let page_index = page_index.unwrap();
         assert_eq!(page_index.title, "Responsive Blog Images");
@@ -366,8 +379,7 @@ tags:
 ---
 The state of images on the web is pretty rough. What should be an easy goal, showing a user a picture, is...
 "#);
-        let traverser = build_traverser();
-        let page_index = traverser.process_md_yaml_front_matter(&contents, &build_file_location());
+        let page_index = process_md_yaml_front_matter(&contents, &build_file_location());
         assert!(page_index.is_err());
         // Pattern match the error type
         match page_index.unwrap_err() {
@@ -390,8 +402,7 @@ tags:
   - Images
 "#,
         );
-        let traverser = build_traverser();
-        let page_index = traverser.process_md_yaml_front_matter(&contents, &build_file_location());
+        let page_index = process_md_yaml_front_matter(&contents, &build_file_location());
         assert!(page_index.is_ok());
     }
 
@@ -409,8 +420,8 @@ tags
 ---
 "#,
         );
-        let traverser = build_traverser();
-        let page_index = traverser.process_md_yaml_front_matter(&contents, &build_file_location());
+
+        let page_index = process_md_yaml_front_matter(&contents, &build_file_location());
         assert!(page_index.is_err());
         // Pattern match error
         match page_index.unwrap_err() {
@@ -436,8 +447,8 @@ aliases = ['/evaluating-software-design/']
 Design is iterative
 "#,
         );
-        let traverser = build_traverser();
-        let page_index = traverser.process_md_toml_front_matter(&contents, &build_file_location());
+
+        let page_index = process_md_toml_front_matter(&contents, &build_file_location());
         assert!(page_index.is_ok());
         let page_index = page_index.unwrap();
         assert_eq!(page_index.title, "Evaluating Software Design");
@@ -470,8 +481,8 @@ tags = ['software development', 'revision', 'design']
 Design is iterative
 "#,
         );
-        let traverser = build_traverser();
-        let page_index = traverser.process_md_toml_front_matter(&contents, &build_file_location());
+
+        let page_index = process_md_toml_front_matter(&contents, &build_file_location());
         assert!(page_index.is_err());
         // Pattern match error
         match page_index.unwrap_err() {
@@ -494,8 +505,8 @@ tags = ['software development', 'revision', 'design']
 Design is iterative
 "#,
         );
-        let traverser = build_traverser();
-        let page_index = traverser.process_md_toml_front_matter(&contents, &build_file_location());
+
+        let page_index = process_md_toml_front_matter(&contents, &build_file_location());
         assert!(page_index.is_err());
         // Pattern match error
         match page_index.unwrap_err() {
@@ -518,8 +529,8 @@ tags = ['software development', 'revision', 'design']
 Design is iterative
 "#,
         );
-        let traverser = build_traverser();
-        let page_index = traverser.process_md_toml_front_matter(&contents, &build_file_location());
+
+        let page_index = process_md_toml_front_matter(&contents, &build_file_location());
         assert!(page_index.is_err());
         // Pattern match error
         match page_index.unwrap_err() {
@@ -543,8 +554,8 @@ tags = ['software development', 'revision', 'design']
 Design is iterative
 "#,
         );
-        let traverser = build_traverser();
-        let page_index = traverser.process_md_toml_front_matter(&contents, &build_file_location());
+
+        let page_index = process_md_toml_front_matter(&contents, &build_file_location());
         assert!(page_index.is_err());
         // Pattern match error
         match page_index.unwrap_err() {

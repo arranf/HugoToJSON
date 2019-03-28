@@ -5,6 +5,7 @@ extern crate log;
 #[macro_use]
 extern crate serde_derive;
 
+extern crate num_cpus;
 extern crate strip_markdown;
 extern crate yaml_rust;
 
