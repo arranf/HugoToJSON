@@ -3,7 +3,6 @@ use predicates::prelude::*;
 use tempfile::*;
 
 use serde_json::Value;
-use std::fs::read_dir;
 use std::fs::*;
 use std::io::prelude::*;
 use std::io::{BufReader, Write};
