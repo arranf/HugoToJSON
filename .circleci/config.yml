@@ -35,7 +35,7 @@ jobs:
             path: target/release/hugo_to_json
             destination: artifacts
       - persist_to_workspace:
-          root: target/release
+          root: ./target/release
           paths:
             - hugo_to_json
 
@@ -48,8 +48,8 @@ jobs:
       - run:
           name: "Publish Release on GitHub"
           command:
-            VERSION=$(hugo_to_json --version)
-            ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} hugo_to_json
+            VERSION=$(./artifacts/hugo_to_json --version)
+            ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} ./artifacts/hugo_to_json
 workflows:
   version: 2
   main:
