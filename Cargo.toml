@@ -1,6 +1,6 @@
 [package]
 name = "hugo_to_json"
-version = "0.3.1"
+version = "0.3.2"
 description = "A library and command line tool for producing a JSON representation of a Hugo site."
 keywords = ["Lunr", "Hugo", "JSON"] 
 authors = ["Arran France <arran@arranfrance.com>"]
