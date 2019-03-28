@@ -23,7 +23,7 @@ impl error::Error for ParseError {
     fn cause(&self) -> Option<&dyn error::Error> {
         match &self.error {
             None => None,
-            Some(v) => v.cause(),
+            Some(v) => v.source(),
         }
     }
 }
