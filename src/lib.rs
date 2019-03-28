@@ -43,6 +43,7 @@ fn write_page_index<W: Write>(
     Ok(())
 }
 
+/// Converts a [Hugo](https://gohugo.io/) contents directory to JSON and writes it to a given file location. The file will be created if it doesn't exist
 pub fn convert_to_json_and_write(
     contents_directory: PathBuf,
     output_location: Option<PathBuf>,
