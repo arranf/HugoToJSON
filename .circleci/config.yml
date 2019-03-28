@@ -32,7 +32,7 @@ jobs:
           name: Run all tests
           command: cargo test
       - store_artifacts:
-            path: target/release/hugo_to_json
+            path: ./target/release/hugo_to_json
             destination: artifacts
       - persist_to_workspace:
           root: ./target/release
@@ -44,12 +44,12 @@ jobs:
       - image: cibuilds/github:0.10
     steps:
       - attach_workspace:
-          at: ./artifacts
+          at: /tmp/artifacts
       - run:
           name: "Publish Release on GitHub"
           command:
-            VERSION=$(./artifacts/hugo_to_json --version)
-            ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} ./artifacts/hugo_to_json
+            VERSION=$(/tmp/artifacts/hugo_to_json --version)
+            ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} /tmp/artifacts/hugo_to_json
 workflows:
   version: 2
   main:
