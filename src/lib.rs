@@ -15,25 +15,23 @@ mod constants;
 mod file_location;
 mod operation_result;
 mod page_index;
-mod traverse_results;
-mod traverser;
+mod traverse;
 
 use std::fs::{create_dir_all, File};
 use std::io::{self, Write};
 use std::path::PathBuf;
 
 use hugo_to_json_error::*;
-use traverse_results::TraverseResults;
-use traverser::Traverser;
+use traverse::{TraverseResults, Traverser};
 
 pub fn create_page_index(contents_directory: PathBuf) -> Result<TraverseResults, HugotoJsonError> {
     let traverser = Traverser::new(contents_directory);
     let index = traverser.traverse_files()?;
-    
+
     let (oks, errors): (Vec<_>, Vec<_>) = index.into_iter().partition(Result::is_ok);
     let index: Vec<_> = oks.into_iter().map(Result::unwrap).collect();
     let errors: Vec<_> = errors.into_iter().map(Result::unwrap_err).collect();
-    
+
     Ok(TraverseResults::new(index, errors))
 }
 
