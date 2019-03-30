@@ -50,28 +50,19 @@ jobs:
       - attach_workspace:
           at: /tmp/artifacts
       - run:
-          name: "Debug /tmp/artifacts"
-          command: ls -la /tmp/artifacts
-      - run:
           name: "Copy to local folder"
           command: cp /tmp/artifacts/hugo_to_json .
       - run:
-          name: "Ls pwd"
-          command: pwd && ls -la
-      - run:
           name: "Check version"
           command: ./hugo_to_json --version
-      - run:
-          name: "Check version again"
-          command: VERSION=$(./hugo_to_json --version) echo ${VERSION}
       - run:
           name: "Get GHR"
           command: go get github.com/tcnksm/ghr
       - run:
           name: "Publish Release on GitHub"
           command:
-            VERSION=$(./project/hugo_to_json --version) \
-            ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} ./project/hugo_to_json
+            VERSION=$(./hugo_to_json --version | cut -d " " -f 4) \
+            /go/bin/ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} ./project/hugo_to_json
 workflows:
   version: 2
   main:
