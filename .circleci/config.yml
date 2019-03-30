@@ -33,13 +33,13 @@ jobs:
           command: cargo test
       - run:
           name: Confirm location and files
-          command: pwd && ls ./target/release
+          command: pwd && ls /root/project/target/release
       - persist_to_workspace:
-          root: ./target/release
+          root: /root/project/target/release
           paths:
             - hugo_to_json
       - store_artifacts:
-            path: ./target/release/hugo_to_json
+            path: /root/project/target/release/hugo_to_json
             destination: artifacts
      
 
@@ -60,18 +60,18 @@ jobs:
           command: pwd && ls -la
       - run:
           name: "Chmod hugo_to_json"
-          command: chmod 777 /tmp/artifacts/hugo_to_json
+          command: chmod 777 /root/project/hugo_to_json
       - run:
           name: "Check version"
-          command: ./hugo_to_json --version
+          command: /root/project/hugo_to_json --version
       - run:
           name: "Check version again"
-          command: VERSION=$(./hugo_to_json --version) echo ${VERSION}
+          command: VERSION=$(/root/project/hugo_to_json --version) echo ${VERSION}
       - run:
           name: "Publish Release on GitHub"
           command:
-            VERSION=$(./hugo_to_json --version) \
-            ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} ./hugo_to_json
+            VERSION=$(/root/project/hugo_to_json --version) \
+            ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} /root/project/hugo_to_json
 workflows:
   version: 2
   main:
