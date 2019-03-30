@@ -59,6 +59,9 @@ jobs:
           name: "Copy to local folder"
           command: cp /tmp/artifacts/hugo_to_json .
       - run:
+          name: "Ls pwd"
+          command: pwd && ls -la
+      - run:
           name: "Check version"
           command: ./hugo_to_json --version
       - run:
@@ -73,15 +76,15 @@ workflows:
   version: 2
   main:
     jobs:
-      - build:
-          filters:
-            tags:
-              only: /^\d+\.\d+\.\d+$/
+      - build
+          # filters:
+          #   tags:
+          #     only: /^\d+\.\d+\.\d+$/
       - publish-github-release:
           requires:
             - build
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /^\d+\.\d+\.\d+$/
+          # filters:
+          #   branches:
+          #     ignore: /.*/
+          #   tags:
+          #     only: /^\d+\.\d+\.\d+$/
