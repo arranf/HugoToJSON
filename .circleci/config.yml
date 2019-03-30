@@ -53,9 +53,15 @@ jobs:
           name: "Debug /tmp/artifacts"
           command: ls /tmp/artifacts
       - run:
+          name: "Check version"
+          command: ls /tmp/artifacts/hugo_to_json --version
+      - run:
+          name: "Check version again"
+          command: VERSION=$(/tmp/artifacts/hugo_to_json --version) echo ${VERSION}
+      - run:
           name: "Publish Release on GitHub"
           command:
-            VERSION=$(/tmp/artifacts/hugo_to_json --version)
+            VERSION=$(/tmp/artifacts/hugo_to_json --version) \
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} /tmp/artifacts/hugo_to_json
 workflows:
   version: 2
