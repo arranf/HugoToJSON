@@ -33,19 +33,19 @@ jobs:
           command: cargo test
       - run:
           name: Confirm location and files
-          command: pwd && ls /root/project/target/release
+          command: pwd && ls ./target/release
       - persist_to_workspace:
-          root: /root/project/target/release
+          root: ./target/release
           paths:
             - hugo_to_json
       - store_artifacts:
-            path: /root/project/target/release/hugo_to_json
+            path: ./target/release/hugo_to_json
             destination: artifacts
      
 
   publish-github-release:
     docker:
-      - image: cibuilds/github:0.10
+      - image: circleci/golang:1.8
     steps:
       - attach_workspace:
           at: /tmp/artifacts
@@ -67,6 +67,9 @@ jobs:
       - run:
           name: "Check version again"
           command: VERSION=$(/root/project/hugo_to_json --version) echo ${VERSION}
+      - run:
+        name: "Get GHR"
+        command: go get github.com/tcnksm/ghr
       - run:
           name: "Publish Release on GitHub"
           command:
