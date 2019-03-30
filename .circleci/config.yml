@@ -54,7 +54,7 @@ jobs:
           command: ls /tmp/artifacts
       - run:
           name: "Chmod hugo_to_json"
-          command: chmod+x /tmp/artifacts/hugo_to_json
+          command: chmod +x /tmp/artifacts/hugo_to_json
       - run:
           name: "Check version"
           command: /tmp/artifacts/hugo_to_json --version
