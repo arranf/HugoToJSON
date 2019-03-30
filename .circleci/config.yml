@@ -46,12 +46,12 @@ jobs:
   publish-github-release:
     docker:
       - image: cibuilds/github:0.10
-    run:
-      name: "Debug /tmp/artifacts"
-      command: ls /tmp/artifacts
     steps:
       - attach_workspace:
           at: /tmp/artifacts
+      - run:
+        name: "Debug /tmp/artifacts"
+        command: ls /tmp/artifacts
       - run:
           name: "Publish Release on GitHub"
           command:
