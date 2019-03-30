@@ -68,8 +68,8 @@ jobs:
           name: "Check version again"
           command: VERSION=$(/root/project/hugo_to_json --version) echo ${VERSION}
       - run:
-        name: "Get GHR"
-        command: go get github.com/tcnksm/ghr
+          name: "Get GHR"
+          command: go get github.com/tcnksm/ghr
       - run:
           name: "Publish Release on GitHub"
           command:
