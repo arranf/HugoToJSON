@@ -50,8 +50,8 @@ jobs:
       - attach_workspace:
           at: /tmp/artifacts
       - run:
-        name: "Debug /tmp/artifacts"
-        command: ls /tmp/artifacts
+          name: "Debug /tmp/artifacts"
+          command: ls /tmp/artifacts
       - run:
           name: "Publish Release on GitHub"
           command:
