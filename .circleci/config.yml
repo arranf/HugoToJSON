@@ -59,22 +59,19 @@ jobs:
           name: "Ls pwd"
           command: pwd && ls -la
       - run:
-          name: "Chmod hugo_to_json"
-          command: chmod 777 /root/project/hugo_to_json
-      - run:
           name: "Check version"
-          command: /root/project/hugo_to_json --version
+          command: ./hugo_to_json --version
       - run:
           name: "Check version again"
-          command: VERSION=$(/root/project/hugo_to_json --version) echo ${VERSION}
+          command: VERSION=$(./hugo_to_json --version) echo ${VERSION}
       - run:
           name: "Get GHR"
           command: go get github.com/tcnksm/ghr
       - run:
           name: "Publish Release on GitHub"
           command:
-            VERSION=$(/root/project/hugo_to_json --version) \
-            ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} /root/project/hugo_to_json
+            VERSION=$(./project/hugo_to_json --version) \
+            ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} ./project/hugo_to_json
 workflows:
   version: 2
   main:
