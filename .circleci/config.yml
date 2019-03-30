@@ -59,10 +59,12 @@ jobs:
           name: "Get GHR"
           command: go get github.com/tcnksm/ghr
       - run:
+          name: "Export Version"
+          command: export VERSION=$(./hugo_to_json --version | cut -d " " -f 4) && echo ${VERSION}
+      - run:
           name: "Publish Release on GitHub"
           command:
-            VERSION=$(./hugo_to_json --version | cut -d " " -f 4) \
-            /go/bin/ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} ./project/hugo_to_json
+            /go/bin/ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} ./hugo_to_json
 workflows:
   version: 2
   main:
