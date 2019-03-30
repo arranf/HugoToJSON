@@ -51,7 +51,7 @@ jobs:
           at: /tmp/artifacts
       - run:
           name: "Debug /tmp/artifacts"
-          command: ls /tmp/artifacts
+          command: ls -la /tmp/artifacts
       - run:
           name: "Chmod hugo_to_json"
           command: chmod +x /tmp/artifacts/hugo_to_json
@@ -59,13 +59,16 @@ jobs:
           name: "Check version"
           command: /tmp/artifacts/hugo_to_json --version
       - run:
+          name: "Copy to local folder"
+          command: cp /tmp/artifacts/hugo_to_json .
+      - run:
           name: "Check version again"
-          command: VERSION=$(/tmp/artifacts/hugo_to_json --version) echo ${VERSION}
+          command: VERSION=$(./hugo_to_json --version) echo ${VERSION}
       - run:
           name: "Publish Release on GitHub"
           command:
-            VERSION=$(/tmp/artifacts/hugo_to_json --version) \
-            ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} /tmp/artifacts/hugo_to_json
+            VERSION=$(./hugo_to_json --version) \
+            ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} ./hugo_to_json
 workflows:
   version: 2
   main:
