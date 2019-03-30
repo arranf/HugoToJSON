@@ -54,7 +54,7 @@ jobs:
           command: ls /tmp/artifacts
       - run:
           name: "Check version"
-          command: ls /tmp/artifacts/hugo_to_json --version
+          command: /tmp/artifacts/hugo_to_json --version
       - run:
           name: "Check version again"
           command: VERSION=$(/tmp/artifacts/hugo_to_json --version) echo ${VERSION}
