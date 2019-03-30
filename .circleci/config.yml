@@ -56,11 +56,11 @@ jobs:
           name: "Chmod hugo_to_json"
           command: chmod +x /tmp/artifacts/hugo_to_json
       - run:
-          name: "Check version"
-          command: /tmp/artifacts/hugo_to_json --version
-      - run:
           name: "Copy to local folder"
           command: cp /tmp/artifacts/hugo_to_json .
+      - run:
+          name: "Check version"
+          command: ./hugo_to_json --version
       - run:
           name: "Check version again"
           command: VERSION=$(./hugo_to_json --version) echo ${VERSION}
