@@ -1,6 +1,6 @@
 # HugoToJSON
 
-[![Build Status](https://travis-ci.com/arranf/HugoToJSON.svg?branch=master)](https://travis-ci.com/arranf/HugoToJSON)
+[![CircleCI](https://circleci.com/gh/arranf/HugoToJSON/tree/master.svg?style=svg)](https://circleci.com/gh/arranf/HugoToJSON/tree/master)
 [![Crate](https://img.shields.io/crates/v/hugo_to_json.svg)](https://crates.io/crates/hugo_to_json)
 
 A utility to produce a JSON representation of the key front matter and contents of Hugo documents. It's main intent is to produce JSON to be used by [Lunr](https://lunrjs.com/) (and [Lunr-like](http://elasticlunr.com/) packages) to support search on a static Hugo site. It's designed to be a fast and modern alternative to the now unsupported [hugo_lunr Node tool](https://www.npmjs.com/package/hugo-lunr).
