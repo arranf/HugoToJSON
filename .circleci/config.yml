@@ -31,17 +31,24 @@ jobs:
       - run:
           name: Run all tests
           command: cargo test
-      - store_artifacts:
-            path: ./target/release/hugo_to_json
-            destination: artifacts
+      - run:
+          name: Confirm location and files
+          command: pwd && ls ./target/release
       - persist_to_workspace:
           root: ./target/release
           paths:
             - hugo_to_json
+      - store_artifacts:
+            path: ./target/release/hugo_to_json
+            destination: artifacts
+     
 
   publish-github-release:
     docker:
       - image: cibuilds/github:0.10
+    run:
+      name: "Debug /tmp/artifacts"
+      command: ls /tmp/artifacts
     steps:
       - attach_workspace:
           at: /tmp/artifacts
@@ -54,10 +61,7 @@ workflows:
   version: 2
   main:
     jobs:
-      - build:
-          filters:
-            tags:
-              only: /^\d+\.\d+\.\d+$/
+      - build
       - publish-github-release:
           requires:
             - build
