@@ -69,6 +69,7 @@ impl PageIndex {
             &file_location.relative_directory_to_content,
             FORWARD_SLASH,
             slug,
+            FORWARD_SLASH,
         ]
         .join(EMPTY_STRING);
 
@@ -124,7 +125,7 @@ mod tests {
             &build_file_location(),
         );
         assert!(page_index.is_ok());
-        assert_eq!(page_index.unwrap().href, "/post/my-example-post")
+        assert_eq!(page_index.unwrap().href, "/post/my-example-post/")
     }
 
     #[test]
