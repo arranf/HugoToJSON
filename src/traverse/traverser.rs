@@ -109,19 +109,9 @@ fn process_file(file_location: &FileLocation) -> Result<PageIndex, OperationResu
 
 fn process_md_file(file_location: &FileLocation) -> Result<PageIndex, OperationResult> {
     let contents = fs::read_to_string(file_location.absolute_path.to_string())?;
+    let first_line = contents.lines().find(|&l| !l.trim().is_empty());
 
-    // Gets the first non-empty line of the file
-    let mut first_line = "";
-    let mut lines = contents.lines();
-
-    while let Some(line) = lines.next() {
-        if !line.trim().is_empty() {
-            first_line = line;
-            break;
-        }
-    }
-
-    match first_line.chars().next() {
+    match first_line.unwrap_or_default().chars().next() {
         Some('+') => process_md_toml_front_matter(&contents, &file_location),
         Some('-') => process_md_yaml_front_matter(&contents, &file_location),
         // TODO: JSON frontmatter '{' => process_json_frontmatter()
