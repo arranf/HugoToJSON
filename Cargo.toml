@@ -1,8 +1,8 @@
 [package]
 name = "hugo_to_json"
-version = "0.3.3"
+version = "0.3.4"
 description = "A library and command line tool for producing a JSON representation of a Hugo site."
-keywords = ["Lunr", "Hugo", "JSON"] 
+keywords = ["Lunr", "Hugo", "JSON"]
 authors = ["Arran France <arran@arranfrance.com>"]
 license = "MIT"
 edition = "2018"
@@ -11,14 +11,14 @@ repository = "https://github.com/arranf/HugoToJSON"
 categories = ["command-line-utilities"]
 
 [dependencies]
-env_logger = "0.6.1"
-log = "0.4.6"
+env_logger = "0.6.2"
+log = "0.4.8"
 strip_markdown = "0.1"
-toml = "0.5.0"
+toml = "0.5.3"
 yaml-rust = "0.4"
 walkdir = "2"
 serde_json = "1.0"
-serde = "1.0.89"
+serde = "1.0.99"
 serde_derive = "1.0"
 structopt = "0.2"
 num_cpus = "1.10"
