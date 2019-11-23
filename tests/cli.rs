@@ -10,7 +10,7 @@ use std::path::Path;
 use std::process::Command;
 
 #[test]
-fn input_folder_doesnt_exist() -> Result<(), Box<std::error::Error>> {
+fn input_folder_doesnt_exist() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME"))?;
 
     // Path doesn't exist
@@ -26,7 +26,7 @@ fn input_folder_doesnt_exist() -> Result<(), Box<std::error::Error>> {
 }
 
 #[test]
-fn output_folder_is_created_if_it_doesnt_exist() -> Result<(), Box<std::error::Error>> {
+fn output_folder_is_created_if_it_doesnt_exist() -> Result<(), Box<dyn std::error::Error>> {
     let mut file = Builder::new()
         .prefix("not-a-dotfile-output-folder-is-created")
         .suffix(".md")
@@ -59,7 +59,7 @@ Contents here
 }
 
 #[test]
-fn output_destination_is_a_directory() -> Result<(), Box<std::error::Error>> {
+fn output_destination_is_a_directory() -> Result<(), Box<dyn std::error::Error>> {
     let input_dir = Builder::new()
         .prefix("input-output_destination_is_a_directory")
         .tempdir()?;
@@ -82,7 +82,7 @@ fn output_destination_is_a_directory() -> Result<(), Box<std::error::Error>> {
 }
 
 #[test]
-fn hidden_files_are_skipped() -> Result<(), Box<std::error::Error>> {
+fn hidden_files_are_skipped() -> Result<(), Box<dyn std::error::Error>> {
     let mut file = Builder::new().prefix(".").suffix(".md").tempfile()?;
     let output_file_path = "./hidden_files_are_skipped.json";
     let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME"))?;
@@ -112,7 +112,7 @@ Contents here
 }
 
 #[test]
-fn skips_everything_except_md_files() -> Result<(), Box<std::error::Error>> {
+fn skips_everything_except_md_files() -> Result<(), Box<dyn std::error::Error>> {
     let input_dir = tempdir()?;
     let mut file_a = Builder::new()
         .prefix("not-a-dotfile-skip-other-extensins")
@@ -154,7 +154,7 @@ Contents here
 }
 
 #[test]
-fn skips_drafts_by_default() -> Result<(), Box<std::error::Error>> {
+fn skips_drafts_by_default() -> Result<(), Box<dyn std::error::Error>> {
     let mut file = Builder::new()
         .prefix("not-a-dotfile-skips-drafts-by-default")
         .suffix(".md")
@@ -190,7 +190,7 @@ Contents here
 }
 
 #[test]
-fn malformed_toml_produces_warning_and_exit_error() -> Result<(), Box<std::error::Error>> {
+fn malformed_toml_produces_warning_and_exit_error() -> Result<(), Box<dyn std::error::Error>> {
     let mut file = Builder::new()
         .prefix("not-a-dotfile-malformed-toml")
         .suffix(".md")
@@ -227,7 +227,7 @@ Contents here
 }
 
 #[test]
-fn malformed_yaml_produces_warning_and_exit_error() -> Result<(), Box<std::error::Error>> {
+fn malformed_yaml_produces_warning_and_exit_error() -> Result<(), Box<dyn std::error::Error>> {
     let mut file = Builder::new()
         .prefix("not-a-dotfile-malformed-yaml")
         .suffix(".md")
@@ -269,7 +269,7 @@ Jon Edmiston
 }
 
 #[test]
-fn correctly_produces_json_for_yaml() -> Result<(), Box<std::error::Error>> {
+fn correctly_produces_json_for_yaml() -> Result<(), Box<dyn std::error::Error>> {
     let mut file = Builder::new()
         .prefix("not-a-dotfile-correct-yaml")
         .suffix(".md")
@@ -309,7 +309,7 @@ tags:
 }
 
 #[test]
-fn correctly_produces_json_for_toml() -> Result<(), Box<std::error::Error>> {
+fn correctly_produces_json_for_toml() -> Result<(), Box<dyn std::error::Error>> {
     let mut file = Builder::new()
         .prefix("not-a-dotfile-correct-toml")
         .suffix(".md")
@@ -348,7 +348,7 @@ Contents here
 }
 
 #[test]
-fn correctly_handles_large_numbers_of_files() -> Result<(), Box<std::error::Error>> {
+fn correctly_handles_large_numbers_of_files() -> Result<(), Box<dyn std::error::Error>> {
     // Create a large amount of files in a directory
     let input_dir = Builder::new()
         .prefix("correctly_handles_large_numbers_of_files-directory")
