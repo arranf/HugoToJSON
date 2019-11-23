@@ -11,6 +11,7 @@ pub struct FileLocation {
     pub extension: String,
     pub absolute_path: String,
     pub file_name: String,
+    pub file_stem: String,
     pub relative_directory_to_content: String,
 }
 
@@ -32,6 +33,9 @@ impl FileLocation {
         let file_name = path
             .file_name()
             .ok_or_else(|| PathError::new(&absolute_path, "Failed to retrieve file name."))?;
+        let file_stem = path
+            .file_stem()
+            .ok_or_else(|| PathError::new(&absolute_path, "Failed to retrieve file stem."))?;
 
         // Get the subdirectory path. Given ./blog/content/sub/post/example.md and a root_dir of ./blog/content produce sub/post
         let relative_directory_to_content: String = path
@@ -45,11 +49,13 @@ impl FileLocation {
 
         let extension = extension.to_string_lossy().into_owned();
         let file_name = file_name.to_string_lossy().into_owned();
+        let file_stem = file_stem.to_string_lossy().into_owned();
 
         Ok(Self {
             extension,
             absolute_path,
             file_name,
+            file_stem,
             relative_directory_to_content,
         })
     }

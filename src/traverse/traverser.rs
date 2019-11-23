@@ -320,6 +320,7 @@ mod test {
             relative_directory_to_content: String::from("post"),
             absolute_path: String::from("/home/blog/content/post/example.md"),
             file_name: String::from("example.md"),
+            file_stem: String::from("example"),
         }
     }
 

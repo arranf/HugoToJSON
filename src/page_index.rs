@@ -82,21 +82,22 @@ fn build_href(
         return Ok(url.to_string());
     }
 
-    let slug = possible_slug.ok_or_else(|| {
-        OperationResult::Parse(ParseError::new(
-            &file_location.absolute_path,
-            "Could not read url or slug from front matter",
-        ))
-    })?;
+    let relative_part = match file_location.relative_directory_to_content.as_ref() {
+        "" => EMPTY_STRING.to_owned(),
+        _ => [FORWARD_SLASH, &file_location.relative_directory_to_content].concat(),
+    };
+
+    if let Some(slug) = possible_slug {
+        return Ok([&relative_part, FORWARD_SLASH, slug, FORWARD_SLASH].concat());
+    }
 
     Ok([
+        &relative_part,
         FORWARD_SLASH,
-        &file_location.relative_directory_to_content,
-        FORWARD_SLASH,
-        slug,
+        &file_location.file_stem.to_lowercase(),
         FORWARD_SLASH,
     ]
-    .join(EMPTY_STRING))
+    .concat())
 }
 
 #[cfg(test)]
@@ -108,6 +109,7 @@ mod tests {
             extension: String::from("md"),
             relative_directory_to_content: String::from("post"),
             absolute_path: String::from("/home/blog/content/post/example.md"),
+            file_stem: String::from("example"),
             file_name: String::from("example.md"),
         }
     }
@@ -176,6 +178,68 @@ mod tests {
     }
 
     #[test]
+    fn constructs_correct_href_without_slug_or_url() {
+        let title = Some("Title");
+        let slug = None;
+        let date = Some("2018-01-01");
+        let description = Some("An example description");
+        let categories = Vec::new();
+        let tags = Vec::new();
+        let keywords = Vec::new();
+        let series = Vec::new();
+        let content = "A lot of content".to_owned();
+        let url = None;
+
+        let page_index = PageIndex::new(
+            title,
+            slug,
+            date,
+            description,
+            categories,
+            series,
+            tags,
+            keywords,
+            content,
+            &build_file_location(),
+            url,
+        );
+        assert!(page_index.is_ok());
+        assert_eq!(page_index.unwrap().href, "/post/example/")
+    }
+
+    #[test]
+    fn href_for_no_slug_or_url_lowers_filename() {
+        let title = Some("Title");
+        let slug = None;
+        let date = Some("2018-01-01");
+        let description = Some("An example description");
+        let categories = Vec::new();
+        let tags = Vec::new();
+        let keywords = Vec::new();
+        let series = Vec::new();
+        let content = "A lot of content".to_owned();
+        let url = None;
+        let mut file_location = build_file_location();
+        file_location.file_stem = file_location.file_stem.to_uppercase();
+
+        let page_index = PageIndex::new(
+            title,
+            slug,
+            date,
+            description,
+            categories,
+            series,
+            tags,
+            keywords,
+            content,
+            &file_location,
+            url,
+        );
+        assert!(page_index.is_ok());
+        assert_eq!(page_index.unwrap().href, "/post/example/")
+    }
+
+    #[test]
     fn no_title_returns_err() {
         let title = None;
         let slug = Some("my-example-post");
@@ -200,35 +264,6 @@ mod tests {
             content,
             &build_file_location(),
             url,
-        )
-        .is_err());
-    }
-
-    #[test]
-    fn no_slug_returns_err() {
-        let title = Some("Title");
-        let slug = None;
-        let date = Some("2018-01-01");
-        let description = Some("An example description");
-        let categories = Vec::new();
-        let tags = Vec::new();
-        let keywords = Vec::new();
-        let series = Vec::new();
-        let content = "A lot of content".to_owned();
-        let url = None;
-
-        assert!(PageIndex::new(
-            title,
-            slug,
-            date,
-            description,
-            categories,
-            series,
-            tags,
-            keywords,
-            content,
-            &build_file_location(),
-            url
         )
         .is_err());
     }

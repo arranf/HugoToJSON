@@ -300,7 +300,7 @@ tags:
     let mut buf_reader = BufReader::new(output_file);
     let mut read_back = String::new();
     buf_reader.read_to_string(&mut read_back)?;
-    let expected = r#"[{"title":"What You Can Achieve In a Year","href":"//what-you-can-achieve-in-a-year/","date":"2019-02-15T20:01:39Z","content":"Jon Edmiston\n","tags":["Blog","RSS","Blogging"]}]"#;
+    let expected = r#"[{"title":"What You Can Achieve In a Year","href":"/what-you-can-achieve-in-a-year/","date":"2019-02-15T20:01:39Z","content":"Jon Edmiston\n","tags":["Blog","RSS","Blogging"]}]"#;
     assert_eq!(read_back, expected);
 
     remove_file(output_file_path)?;
@@ -339,7 +339,144 @@ Contents here
     let mut buf_reader = BufReader::new(output_file);
     let mut read_back = String::new();
     buf_reader.read_to_string(&mut read_back)?;
-    let expected = r#"[{"title":"Replacing Sed/Awk With Amber","href":"//replacing-awk-sed-with-amber/","date":"2019-01-25T07:52:40Z","content":"Contents here","tags":["Rust","Bash","Awk","Sed","Amber","Code Search","Replace","Unix"]}]"#;
+    let expected = r#"[{"title":"Replacing Sed/Awk With Amber","href":"/replacing-awk-sed-with-amber/","date":"2019-01-25T07:52:40Z","content":"Contents here","tags":["Rust","Bash","Awk","Sed","Amber","Code Search","Replace","Unix"]}]"#;
+    assert_eq!(read_back, expected);
+
+    remove_file(output_file_path)?;
+    file.close()?;
+    Ok(())
+}
+
+#[test]
+fn correctly_produces_json_for_toml_with_url_property() -> Result<(), Box<dyn std::error::Error>> {
+    let mut file = Builder::new()
+        .prefix("correctly_produces_json_for_toml_with_url_property")
+        .suffix(".md")
+        .tempfile()?;
+    let output_file_path = "./correctly_produces_json_for_toml_with_url_property.json";
+    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME"))?;
+
+    let contents = r#"+++
+draft = false
+title = "Replacing Sed/Awk With Amber"
+date = "2019-01-25T07:52:40Z"
+url = "/en/post/2019/replacing-awk-sed-with-amber"
+tags = ['Rust', 'Bash', 'Awk', 'Sed', 'Amber', 'Code Search', 'Replace', 'Unix']
+banner = ""
+aliases = []
++++
+Contents here
+"#;
+
+    writeln!(file, "{}", contents)?;
+
+    cmd.arg(file.path()).arg("-o").arg(output_file_path);
+
+    cmd.assert().success();
+
+    let output_file = File::open(output_file_path)?;
+    let mut buf_reader = BufReader::new(output_file);
+    let mut read_back = String::new();
+    buf_reader.read_to_string(&mut read_back)?;
+    let expected = r#"[{"title":"Replacing Sed/Awk With Amber","href":"/en/post/2019/replacing-awk-sed-with-amber","date":"2019-01-25T07:52:40Z","content":"Contents here","tags":["Rust","Bash","Awk","Sed","Amber","Code Search","Replace","Unix"]}]"#;
+    assert_eq!(read_back, expected);
+
+    remove_file(output_file_path)?;
+    file.close()?;
+    Ok(())
+}
+
+#[test]
+fn correctly_produces_json_for_yaml_with_slug_and_relative_path(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let input_dir = Builder::new().prefix("content").tempdir()?;
+    let nested_inside_content_dir = Builder::new()
+        .prefix("nested")
+        .tempdir_in(input_dir.path())?;
+
+    let mut file = Builder::new()
+        .prefix("correctly_produces_json_for_yaml_with_relative_path-yaml")
+        .suffix(".md")
+        .tempfile_in(nested_inside_content_dir.path())?;
+    let output_file_path = "./correctly_produces_json_for_yaml_with_relative_path.json";
+    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME"))?;
+
+    let contents = r#"---
+draft: false
+title: What You Can Achieve In a Year
+date: "2019-02-15T20:01:39Z"
+slug: what-you-can-achieve-in-a-year
+tags:
+  - 'Blog'
+  - 'RSS'
+  - 'Blogging'
+---
+# Jon Edmiston
+"#;
+
+    writeln!(file, "{}", contents)?;
+
+    cmd.arg(input_dir.path()).arg("-o").arg(output_file_path);
+
+    cmd.assert().success();
+
+    let output_file = File::open(output_file_path)?;
+    let mut buf_reader = BufReader::new(output_file);
+    let mut read_back = String::new();
+    buf_reader.read_to_string(&mut read_back)?;
+    let expected = format!(
+        r#"[{{"title":"What You Can Achieve In a Year","href":"/{0}/what-you-can-achieve-in-a-year/","date":"2019-02-15T20:01:39Z","content":"Jon Edmiston\n","tags":["Blog","RSS","Blogging"]}}]"#,
+        nested_inside_content_dir.path().file_stem().unwrap().to_str().unwrap()
+    );
+    assert_eq!(read_back, expected);
+
+    remove_file(output_file_path)?;
+    file.close()?;
+    Ok(())
+}
+
+#[test]
+fn correctly_produces_json_for_yaml_without_slug_or_url() -> Result<(), Box<dyn std::error::Error>>
+{
+    let input_dir = Builder::new().prefix("content").tempdir()?;
+    let nested_inside_content_dir = Builder::new()
+        .prefix("nested")
+        .tempdir_in(input_dir.path())?;
+
+    let mut file = Builder::new()
+        .prefix("correctly_produces_json_for_yaml_without_slug_or_url-yaml")
+        .suffix(".md")
+        .tempfile_in(nested_inside_content_dir.path())?;
+    let output_file_path = "./correctly_produces_json_for_yaml_without_slug_or_url.json";
+    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME"))?;
+
+    let contents = r#"---
+draft: false
+title: What You Can Achieve In a Year
+date: "2019-02-15T20:01:39Z"
+tags:
+  - 'Blog'
+  - 'RSS'
+  - 'Blogging'
+---
+# Jon Edmiston
+"#;
+
+    writeln!(file, "{}", contents)?;
+
+    cmd.arg(input_dir.path()).arg("-o").arg(output_file_path);
+
+    cmd.assert().success();
+
+    let output_file = File::open(output_file_path)?;
+    let mut buf_reader = BufReader::new(output_file);
+    let mut read_back = String::new();
+    buf_reader.read_to_string(&mut read_back)?;
+    let expected = format!(
+        r#"[{{"title":"What You Can Achieve In a Year","href":"/{0}/{1}/","date":"2019-02-15T20:01:39Z","content":"Jon Edmiston\n","tags":["Blog","RSS","Blogging"]}}]"#,
+        nested_inside_content_dir.path().file_stem().unwrap().to_str().unwrap(),
+        file.path().file_stem().unwrap().to_str().unwrap().to_lowercase()
+    );
     assert_eq!(read_back, expected);
 
     remove_file(output_file_path)?;
