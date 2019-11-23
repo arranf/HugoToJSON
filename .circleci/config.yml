@@ -41,11 +41,11 @@ jobs:
       - store_artifacts:
             path: ./target/release/hugo_to_json
             destination: artifacts
-     
+
 
   publish-github-release:
     docker:
-      - image: circleci/golang:1.8
+      - image: circleci/golang:current
     steps:
       - attach_workspace:
           at: /tmp/artifacts
