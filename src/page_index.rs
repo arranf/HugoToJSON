@@ -33,6 +33,7 @@ impl PageIndex {
         keywords: Vec<String>,
         content: String,
         file_location: &FileLocation,
+        url: Option<&str>,
     ) -> Result<Self, OperationResult> {
         let title = title
             .ok_or_else(|| {
@@ -54,24 +55,9 @@ impl PageIndex {
             .trim()
             .to_owned();
 
-        let slug = slug
-            .ok_or_else(|| {
-                OperationResult::Parse(ParseError::new(
-                    &file_location.absolute_path,
-                    "Could not read slug from front matter",
-                ))
-            })?
-            .trim();
-
         let description = description.unwrap_or("").to_owned();
-        let href = [
-            FORWARD_SLASH,
-            &file_location.relative_directory_to_content,
-            FORWARD_SLASH,
-            slug,
-            FORWARD_SLASH,
-        ]
-        .join(EMPTY_STRING);
+
+        let href = build_href(slug, url, file_location)?;
 
         Ok(Self {
             title,
@@ -85,6 +71,32 @@ impl PageIndex {
             content,
         })
     }
+}
+
+fn build_href(
+    possible_slug: Option<&str>,
+    possible_url: Option<&str>,
+    file_location: &FileLocation,
+) -> Result<String, OperationResult> {
+    if let Some(url) = possible_url {
+        return Ok(url.to_string());
+    }
+
+    let slug = possible_slug.ok_or_else(|| {
+        OperationResult::Parse(ParseError::new(
+            &file_location.absolute_path,
+            "Could not read url or slug from front matter",
+        ))
+    })?;
+
+    Ok([
+        FORWARD_SLASH,
+        &file_location.relative_directory_to_content,
+        FORWARD_SLASH,
+        slug,
+        FORWARD_SLASH,
+    ]
+    .join(EMPTY_STRING))
 }
 
 #[cfg(test)]
@@ -101,7 +113,7 @@ mod tests {
     }
 
     #[test]
-    fn constructs_valid_href() {
+    fn constructs_valid_href_with_slug() {
         let title = Some("Title");
         let slug = Some("my-example-post");
         let date = Some("2018-01-01");
@@ -111,6 +123,7 @@ mod tests {
         let keywords = Vec::new();
         let series = Vec::new();
         let content = "A lot of content".to_owned();
+        let url = None;
 
         let page_index = PageIndex::new(
             title,
@@ -123,9 +136,43 @@ mod tests {
             keywords,
             content,
             &build_file_location(),
+            url,
         );
         assert!(page_index.is_ok());
         assert_eq!(page_index.unwrap().href, "/post/my-example-post/")
+    }
+
+    #[test]
+    fn constructs_valid_href_with_url() {
+        let title = Some("Title");
+        let slug = None;
+        let date = Some("2018-01-01");
+        let description = Some("An example description");
+        let categories = Vec::new();
+        let tags = Vec::new();
+        let keywords = Vec::new();
+        let series = Vec::new();
+        let content = "A lot of content".to_owned();
+        let url = Some("deep/nested/post/my-example-post/");
+
+        let page_index = PageIndex::new(
+            title,
+            slug,
+            date,
+            description,
+            categories,
+            series,
+            tags,
+            keywords,
+            content,
+            &build_file_location(),
+            url,
+        );
+        assert!(page_index.is_ok());
+        assert_eq!(
+            page_index.unwrap().href,
+            "deep/nested/post/my-example-post/"
+        )
     }
 
     #[test]
@@ -139,6 +186,7 @@ mod tests {
         let keywords = Vec::new();
         let series = Vec::new();
         let content = "A lot of content".to_owned();
+        let url = None;
 
         assert!(PageIndex::new(
             title,
@@ -150,7 +198,8 @@ mod tests {
             tags,
             keywords,
             content,
-            &build_file_location()
+            &build_file_location(),
+            url,
         )
         .is_err());
     }
@@ -166,6 +215,7 @@ mod tests {
         let keywords = Vec::new();
         let series = Vec::new();
         let content = "A lot of content".to_owned();
+        let url = None;
 
         assert!(PageIndex::new(
             title,
@@ -177,7 +227,8 @@ mod tests {
             tags,
             keywords,
             content,
-            &build_file_location()
+            &build_file_location(),
+            url
         )
         .is_err());
     }
@@ -193,6 +244,7 @@ mod tests {
         let keywords = Vec::new();
         let series = Vec::new();
         let content = "A lot of content".to_owned();
+        let url = None;
 
         assert!(PageIndex::new(
             title,
@@ -204,7 +256,8 @@ mod tests {
             tags,
             keywords,
             content,
-            &build_file_location()
+            &build_file_location(),
+            url,
         )
         .is_err());
     }

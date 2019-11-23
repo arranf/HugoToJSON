@@ -164,6 +164,7 @@ fn process_md_toml_front_matter(
     let description = front_matter
         .get(constants::DESCRIPTION)
         .and_then(|v| v.as_str());
+    let url = front_matter.get(constants::URL).and_then(|v| v.as_str());
 
     let categories: Vec<String> = front_matter
         .get(constants::CATEGORIES)
@@ -210,6 +211,7 @@ fn process_md_toml_front_matter(
         keywords,
         content,
         &file_location,
+        url,
     )
 }
 
@@ -254,6 +256,7 @@ fn process_md_yaml_front_matter(
     let slug = front_matter[constants::SLUG].as_str();
     let description = front_matter[constants::DESCRIPTION].as_str();
     let date = front_matter[constants::DATE].as_str();
+    let url = front_matter[constants::URL].as_str();
 
     let series: Vec<String> = front_matter[constants::SERIES]
         .as_vec()
@@ -296,6 +299,7 @@ fn process_md_yaml_front_matter(
         keywords,
         content,
         &file_location,
+        url,
     )
 }
 
