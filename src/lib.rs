@@ -1,30 +1,55 @@
+//! A crate for parsing YAML or TOML files from a [Hugo](https://gohugo.io/) contents directory to produce a JSON representation of the key front matter and contents of Hugo documents. It's main intent is to produce JSON to be used by [Lunr](https://lunrjs.com/) (and [Lunr-like](http://elasticlunr.com/) packages) to support search on a static Hugo site.
+
 #![warn(clippy::all, clippy::pedantic)]
+#![warn(missing_docs)]
+#![warn(missing_doc_code_examples)]
 
 #[macro_use]
 extern crate log;
 #[macro_use]
 extern crate serde_derive;
 
-extern crate num_cpus;
-extern crate strip_markdown;
-extern crate yaml_rust;
-
+/// Contains possible errors.
 pub mod hugo_to_json_error;
+/// Represents the result of trying to parse a file.
+pub mod operation_result;
+/// Contains the `PageIndex` data structure.
+pub mod page_index;
+/// Contains configuration options.
 pub mod settings;
 
 mod constants;
 mod file_location;
-mod operation_result;
-mod page_index;
 mod traverse;
 
 use std::fs::{create_dir_all, File};
 use std::io::{self, Write};
 use std::path::PathBuf;
 
-use hugo_to_json_error::*;
+use hugo_to_json_error::HugotoJsonError;
 use traverse::{TraverseResults, Traverser};
 
+/// Given a contents directory it traverses all matching `.md` files with TOML and YAML frontmatter.
+///
+///  # Examples
+/// ```no_run
+/// use hugo_to_json::{create_page_index, page_index::PageIndex, operation_result::OperationResult, hugo_to_json_error::HugotoJsonError};
+/// use std::path::PathBuf;
+///
+/// let traverse_result = create_page_index(PathBuf::from("/home/example_user/documents/blog/contents/"))?;
+/// // We can then see if there were any errors.
+/// let indices: Vec<PageIndex> = traverse_result.page_index;
+/// let errors: Vec<OperationResult> = traverse_result.errors;
+///
+/// if traverse_result.error_count > 0 {
+///     panic!("Errors found"); // Don't do this for real!
+/// }
+/// # Ok::<(), HugotoJsonError>(())
+/// ```
+///
+/// # Errors
+/// A `HugoToJsonError` should only occur if an IO error occurs trying to access the contents directory.
+/// All other errors are stored in the errors property of the `TraverseResults`.
 pub fn create_page_index(contents_directory: PathBuf) -> Result<TraverseResults, HugotoJsonError> {
     let traverser = Traverser::new(contents_directory);
     let index = traverser.traverse_files()?;
@@ -44,7 +69,32 @@ fn write_page_index<W: Write>(
     Ok(())
 }
 
-/// Converts a [Hugo](https://gohugo.io/) contents directory to JSON and writes it to a given file location. The file will be created if it doesn't exist
+/// Converts a [Hugo](https://gohugo.io/) contents directory to JSON and writes it to a given location.
+/// If the output location is provided and it doesn't exist, it will be created. If no output location it will write to stdout.
+///
+/// # Examples
+///
+/// A basic example that writes to stdout.
+/// ```no_run
+/// use hugo_to_json::convert_to_json_and_write;
+/// use std::path::PathBuf;
+/// # use hugo_to_json::hugo_to_json_error::HugotoJsonError;
+/// convert_to_json_and_write(PathBuf::from("/home/example_user/documents/blog/contents/"), None)?;
+/// # Ok::<(), HugotoJsonError>(())
+/// ```
+///
+/// An example that writes to a file.
+/// ```no_run
+/// use hugo_to_json::convert_to_json_and_write;
+/// use std::path::PathBuf;
+/// # use hugo_to_json::hugo_to_json_error::HugotoJsonError;
+///
+/// let result = convert_to_json_and_write(PathBuf::from("/home/example_user/documents/blog/contents/"), Some(PathBuf::from("/home/example_user/documents/blog/static/index.json")))?;
+/// # Ok::<(), HugotoJsonError>(())
+/// ```
+///
+/// # Errors
+/// Errors can occur if there is an error accessing the contents directory, serializing the page index to JSON, or performing IO writing the result out to either stdout or a file.
 pub fn convert_to_json_and_write(
     contents_directory: PathBuf,
     output_location: Option<PathBuf>,
@@ -70,10 +120,9 @@ pub fn convert_to_json_and_write(
     }
 
     if traverse_results.error_count > 0 {
-        Err(HugotoJsonError::Meta(Meta::new(
-            traverse_results.error_count,
-            "Failed to process all content files",
-        )))
+        Err(HugotoJsonError::Meta {
+            total: traverse_results.error_count,
+        })
     } else {
         debug!("Succesfully wrote index to {0}", writing_to);
         Ok(())

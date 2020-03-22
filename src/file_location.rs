@@ -8,10 +8,15 @@ use walkdir::DirEntry;
 
 #[derive(Debug)]
 pub struct FileLocation {
+    /// The file's extension
     pub extension: String,
+    /// The file's absolute path
     pub absolute_path: String,
+    /// The name of the file including the extension
     pub file_name: String,
+    /// The name of the file, without the extension. `foo.rs` becomes `foo`
     pub file_stem: String,
+    // The directory relative to the content directory. Given `./blog/content/sub/post/example.md` and a content_dir of `./blog/content` produce `sub/post`
     pub relative_directory_to_content: String,
 }
 

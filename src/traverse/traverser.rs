@@ -3,6 +3,7 @@ use toml::Value;
 use walkdir::{DirEntry, WalkDir};
 use yaml_rust::YamlLoader;
 
+use num_cpus;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::mpsc::channel;
@@ -11,7 +12,6 @@ use threadpool::ThreadPool;
 use crate::constants;
 use crate::file_location::*;
 use crate::hugo_to_json_error::*;
-use crate::num_cpus;
 use crate::operation_result::*;
 use crate::page_index::PageIndex;
 
@@ -32,10 +32,13 @@ impl Traverser {
     ) -> Result<Vec<Result<PageIndex, OperationResult>>, HugotoJsonError> {
         let mut index = Vec::new();
 
+        // TODO: Attempt to use Raynon for a speed increase.
+
         let thread_count = num_cpus::get();
         let pool = ThreadPool::new(thread_count);
         let (tx, rx) = channel();
 
+        // This errors early if the path doesn't exist
         fs::metadata(&self.contents_directory_path)?;
 
         for entry in WalkDir::new(&self.contents_directory_path)
@@ -45,17 +48,18 @@ impl Traverser {
             match entry {
                 Ok(ref file) => {
                     let file_location = FileLocation::new(file, &self.contents_directory_path);
+                    // TODO: What should be done in this case?
                     if file_location.is_err() {
                         continue;
                     }
 
-                    let tx = tx.clone();
+                    let thread_tx = tx.clone();
                     let file_location = file_location.unwrap();
 
                     pool.execute(move || {
                         debug!("Processing {}", &file_location);
                         let process_result = process_file(&file_location);
-                        tx.send(process_result).expect("Channel exists");
+                        thread_tx.send(process_result).expect("Channel exists");
                     });
                 }
                 Err(error) => {
@@ -147,7 +151,7 @@ fn process_md_toml_front_matter(
         })?;
     let is_draft = front_matter
         .get(constants::DRAFT)
-        .and_then(|v| v.as_bool())
+        .and_then(Value::as_bool)
         .unwrap_or(false);
 
     // TODO: Add a flag to allow indexing drafts
@@ -158,17 +162,17 @@ fn process_md_toml_front_matter(
         )));
     }
 
-    let title = front_matter.get(constants::TITLE).and_then(|v| v.as_str());
-    let slug = front_matter.get(constants::SLUG).and_then(|v| v.as_str());
-    let date = front_matter.get(constants::DATE).and_then(|v| v.as_str());
+    let title = front_matter.get(constants::TITLE).and_then(Value::as_str);
+    let slug = front_matter.get(constants::SLUG).and_then(Value::as_str);
+    let date = front_matter.get(constants::DATE).and_then(Value::as_str);
     let description = front_matter
         .get(constants::DESCRIPTION)
-        .and_then(|v| v.as_str());
-    let url = front_matter.get(constants::URL).and_then(|v| v.as_str());
+        .and_then(Value::as_str);
+    let url = front_matter.get(constants::URL).and_then(Value::as_str);
 
     let categories: Vec<String> = front_matter
         .get(constants::CATEGORIES)
-        .and_then(|v| v.as_array())
+        .and_then(Value::as_array)
         .unwrap_or(&Vec::new())
         .iter()
         .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
@@ -176,7 +180,7 @@ fn process_md_toml_front_matter(
 
     let series: Vec<String> = front_matter
         .get(constants::SERIES)
-        .and_then(|v| v.as_array())
+        .and_then(Value::as_array)
         .unwrap_or(&Vec::new())
         .iter()
         .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
@@ -184,7 +188,7 @@ fn process_md_toml_front_matter(
 
     let tags: Vec<String> = front_matter
         .get(constants::TAGS)
-        .and_then(|v| v.as_array())
+        .and_then(Value::as_array)
         .unwrap_or(&Vec::new())
         .iter()
         .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
@@ -192,7 +196,7 @@ fn process_md_toml_front_matter(
 
     let keywords: Vec<String> = front_matter
         .get(constants::KEYWORDS)
-        .and_then(|v| v.as_array())
+        .and_then(Value::as_array)
         .unwrap_or(&Vec::new())
         .iter()
         .filter_map(|v| v.as_str().map(|s| s.trim().to_owned()))
@@ -326,7 +330,8 @@ mod test {
 
     #[test]
     fn page_index_from_yaml() {
-        let contents = String::from(r#"
+        let contents = String::from(
+            r#"
 ---
 draft: false
 title: Responsive Blog Images
@@ -339,7 +344,8 @@ tags:
   - Blog
 ---
 The state of images on the web is pretty rough. What should be an easy goal, showing a user a picture, is...
-"#);
+"#,
+        );
         let page_index = process_md_yaml_front_matter(&contents, &build_file_location());
         assert!(page_index.is_ok());
         let page_index = page_index.unwrap();
@@ -360,7 +366,8 @@ The state of images on the web is pretty rough. What should be an easy goal, sho
 
     #[test]
     fn page_index_from_yaml_returns_skip_err_when_draft() {
-        let contents = String::from(r#"
+        let contents = String::from(
+            r#"
 ---
 draft: true
 title: Responsive Blog Images
@@ -373,13 +380,14 @@ tags:
   - Blog
 ---
 The state of images on the web is pretty rough. What should be an easy goal, showing a user a picture, is...
-"#);
+"#,
+        );
         let page_index = process_md_yaml_front_matter(&contents, &build_file_location());
         assert!(page_index.is_err());
         // Pattern match the error type
         match page_index.unwrap_err() {
-            OperationResult::Skip(_) => assert!(true), // The case where the result is a Skip result succeeds
-            _ => assert!(false),                       // All other cases fail
+            OperationResult::Skip(_) => (), // The case where the result is a Skip result succeeds
+            _ => panic!("This should fail"), // All other cases fail
         }
     }
 
@@ -420,8 +428,8 @@ tags
         assert!(page_index.is_err());
         // Pattern match error
         match page_index.unwrap_err() {
-            OperationResult::Parse(_) => assert!(true), // The case where the result is a Parse result succeeds
-            _ => assert!(false),                        // All other cases fail
+            OperationResult::Parse(_) => (), // The case where the result is a Parse result succeeds
+            _ => panic!("This should not fail"), // All other cases fail
         }
     }
 
@@ -481,8 +489,8 @@ Design is iterative
         assert!(page_index.is_err());
         // Pattern match error
         match page_index.unwrap_err() {
-            OperationResult::Skip(_) => assert!(true), // The case where the result is a Skip result succeeds
-            _ => assert!(false),                       // All other cases fail
+            OperationResult::Skip(_) => (), // The case where the result is a Skip result succeeds
+            _ => panic!("This should fail"), // All other cases fail
         }
     }
 
@@ -505,8 +513,8 @@ Design is iterative
         assert!(page_index.is_err());
         // Pattern match error
         match page_index.unwrap_err() {
-            OperationResult::Parse(_) => assert!(true), // The case where the result is a Parse result succeeds
-            _ => assert!(false),                        // All other cases fail
+            OperationResult::Parse(_) => (), // The case where the result is a Parse result succeeds
+            _ => panic!("This should fail"), // All other cases fail
         }
     }
 
@@ -529,8 +537,8 @@ Design is iterative
         assert!(page_index.is_err());
         // Pattern match error
         match page_index.unwrap_err() {
-            OperationResult::Parse(_) => assert!(true), // The case where the result is a Parse result succeeds
-            _ => assert!(false),                        // All other cases fail
+            OperationResult::Parse(_) => (), // The case where the result is a Parse result succeeds
+            _ => panic!("This should fail"), // All other cases fail
         }
     }
 
@@ -554,8 +562,8 @@ Design is iterative
         assert!(page_index.is_err());
         // Pattern match error
         match page_index.unwrap_err() {
-            OperationResult::Parse(_) => assert!(true), // The case where the result is a Parse result succeeds
-            _ => assert!(false),                        // All other cases fail
+            OperationResult::Parse(_) => (), // The case where the result is a Parse result succeeds
+            _ => panic!("This should fail"), // All other cases fail
         }
     }
 }
