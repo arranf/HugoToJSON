@@ -3,6 +3,7 @@ use toml::Value;
 use walkdir::{DirEntry, WalkDir};
 use yaml_rust::YamlLoader;
 
+use num_cpus;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::mpsc::channel;
@@ -11,7 +12,6 @@ use threadpool::ThreadPool;
 use crate::constants;
 use crate::file_location::*;
 use crate::hugo_to_json_error::*;
-use crate::num_cpus;
 use crate::operation_result::*;
 use crate::page_index::PageIndex;
 

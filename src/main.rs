@@ -1,8 +1,6 @@
 #![warn(clippy::all, clippy::pedantic)]
 #![macro_use]
 extern crate env_logger;
-extern crate hugo_to_json;
-extern crate structopt;
 
 mod settings;
 

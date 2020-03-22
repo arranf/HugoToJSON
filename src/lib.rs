@@ -5,10 +5,6 @@ extern crate log;
 #[macro_use]
 extern crate serde_derive;
 
-extern crate num_cpus;
-extern crate strip_markdown;
-extern crate yaml_rust;
-
 pub mod hugo_to_json_error;
 pub mod settings;
 
