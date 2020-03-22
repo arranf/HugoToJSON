@@ -146,17 +146,6 @@ impl fmt::Display for OperationResult {
 }
 
 impl error::Error for OperationResult {
-    fn description(&self) -> &str {
-        // Both underlying errors already impl `Error`, so we defer to their
-        // implementations.
-        match *self {
-            OperationResult::Io(ref err) => err.description(),
-            OperationResult::Parse(ref err) => err.description(),
-            OperationResult::Skip(ref err) => err.description(),
-            OperationResult::Path(ref err) => err.description(),
-        }
-    }
-
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match *self {
             // N.B. Both of these implicitly cast `err` from their concrete
