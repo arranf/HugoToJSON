@@ -2,8 +2,6 @@
 #![macro_use]
 extern crate env_logger;
 
-mod settings;
-
 use env_logger::Env;
 use hugo_to_json::{hugo_to_json_error::*, settings::*};
 use structopt::StructOpt;
