@@ -3,25 +3,40 @@ use crate::file_location::FileLocation;
 use crate::operation_result::*;
 
 #[derive(Serialize, Debug, PartialEq)]
+/// Represents a summary of an individual document/post in the contents directory.
 pub struct PageIndex {
+    /// Title of the document from frontmatter
     pub title: String,
+    /// href of the document, constructed from either frontmatter if it exists or relative path info
     pub href: String,
+    /// date of the document from frontmatter
     pub date: String,
+    /// contents of the document with markdown stripped away
     pub content: String,
     #[serde(skip_serializing_if = "String::is_empty")]
+    /// Description of the document from frontmatter
     pub description: String,
+    /// Categories of the document from frontmatter
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub categories: Vec<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
+    /// Series of the document from frontmatter
     pub series: Vec<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
+    /// Tags of the document from frontmatter
     pub tags: Vec<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
+    /// Keywords of the document from frontmatter
     pub keywords: Vec<String>,
 }
 
+// TODO: Make this use a builder pattern.
 impl PageIndex {
     #![allow(clippy::too_many_arguments)]
+    /// Creates a new Page Index from the parameters read from the frontmatter of the document.
+    /// It will also try and construct a href to the document using either data in the frontmatter or based on the file location.
+    /// # Errors
+    /// This will fail if a document doesn't contain a title or a date or they can't be read from the frontmatter.
     pub fn new(
         title: Option<&str>,
         slug: Option<&str>,
@@ -57,7 +72,7 @@ impl PageIndex {
 
         let description = description.unwrap_or("").to_owned();
 
-        let href = build_href(slug, url, file_location)?;
+        let href = build_href(slug, url, file_location);
 
         Ok(Self {
             title,
@@ -73,13 +88,14 @@ impl PageIndex {
     }
 }
 
+/// Tries a builds a href to the document using either slug and urls provided by frontmatter or using path info.
 fn build_href(
     possible_slug: Option<&str>,
     possible_url: Option<&str>,
     file_location: &FileLocation,
-) -> Result<String, OperationResult> {
+) -> String {
     if let Some(url) = possible_url {
-        return Ok(url.to_string());
+        return url.to_string();
     }
 
     let relative_part = match file_location.relative_directory_to_content.as_ref() {
@@ -88,16 +104,16 @@ fn build_href(
     };
 
     if let Some(slug) = possible_slug {
-        return Ok([&relative_part, FORWARD_SLASH, slug, FORWARD_SLASH].concat());
+        return [&relative_part, FORWARD_SLASH, slug, FORWARD_SLASH].concat();
     }
 
-    Ok([
+    [
         &relative_part,
         FORWARD_SLASH,
         &file_location.file_stem.to_lowercase(),
         FORWARD_SLASH,
     ]
-    .concat())
+    .concat()
 }
 
 #[cfg(test)]

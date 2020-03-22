@@ -11,13 +11,14 @@ extern crate serde_derive;
 
 /// Contains possible errors.
 pub mod hugo_to_json_error;
+/// Contains the `PageIndex` data structure.
+pub mod page_index;
 /// Contains configuration options.
 pub mod settings;
 
 mod constants;
 mod file_location;
 mod operation_result;
-mod page_index;
 mod traverse;
 
 use std::fs::{create_dir_all, File};
