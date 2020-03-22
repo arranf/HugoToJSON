@@ -386,8 +386,8 @@ The state of images on the web is pretty rough. What should be an easy goal, sho
         assert!(page_index.is_err());
         // Pattern match the error type
         match page_index.unwrap_err() {
-            OperationResult::Skip(_) => assert!(true), // The case where the result is a Skip result succeeds
-            _ => panic!("This should fail"),           // All other cases fail
+            OperationResult::Skip(_) => (), // The case where the result is a Skip result succeeds
+            _ => panic!("This should fail"), // All other cases fail
         }
     }
 
@@ -428,8 +428,8 @@ tags
         assert!(page_index.is_err());
         // Pattern match error
         match page_index.unwrap_err() {
-            OperationResult::Parse(_) => assert!(true), // The case where the result is a Parse result succeeds
-            _ => assert!(false),                        // All other cases fail
+            OperationResult::Parse(_) => (), // The case where the result is a Parse result succeeds
+            _ => panic!("This should not fail"), // All other cases fail
         }
     }
 
@@ -489,8 +489,8 @@ Design is iterative
         assert!(page_index.is_err());
         // Pattern match error
         match page_index.unwrap_err() {
-            OperationResult::Skip(_) => assert!(true), // The case where the result is a Skip result succeeds
-            _ => panic!("This should fail"),           // All other cases fail
+            OperationResult::Skip(_) => (), // The case where the result is a Skip result succeeds
+            _ => panic!("This should fail"), // All other cases fail
         }
     }
 
@@ -513,8 +513,8 @@ Design is iterative
         assert!(page_index.is_err());
         // Pattern match error
         match page_index.unwrap_err() {
-            OperationResult::Parse(_) => assert!(true), // The case where the result is a Parse result succeeds
-            _ => panic!("This should fail"),            // All other cases fail
+            OperationResult::Parse(_) => (), // The case where the result is a Parse result succeeds
+            _ => panic!("This should fail"), // All other cases fail
         }
     }
 
@@ -537,8 +537,8 @@ Design is iterative
         assert!(page_index.is_err());
         // Pattern match error
         match page_index.unwrap_err() {
-            OperationResult::Parse(_) => assert!(true), // The case where the result is a Parse result succeeds
-            _ => panic!("This should fail"),            // All other cases fail
+            OperationResult::Parse(_) => (), // The case where the result is a Parse result succeeds
+            _ => panic!("This should fail"), // All other cases fail
         }
     }
 
@@ -562,8 +562,8 @@ Design is iterative
         assert!(page_index.is_err());
         // Pattern match error
         match page_index.unwrap_err() {
-            OperationResult::Parse(_) => assert!(true), // The case where the result is a Parse result succeeds
-            _ => panic!("This should fail"),            // All other cases fail
+            OperationResult::Parse(_) => (), // The case where the result is a Parse result succeeds
+            _ => panic!("This should fail"), // All other cases fail
         }
     }
 }
