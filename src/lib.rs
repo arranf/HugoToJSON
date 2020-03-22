@@ -70,10 +70,9 @@ pub fn convert_to_json_and_write(
     }
 
     if traverse_results.error_count > 0 {
-        Err(HugotoJsonError::Meta(Meta::new(
-            traverse_results.error_count,
-            "Failed to process all content files",
-        )))
+        Err(HugotoJsonError::Meta {
+            total: traverse_results.error_count,
+        })
     } else {
         debug!("Succesfully wrote index to {0}", writing_to);
         Ok(())
