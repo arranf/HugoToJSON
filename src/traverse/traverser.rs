@@ -32,6 +32,8 @@ impl Traverser {
     ) -> Result<Vec<Result<PageIndex, OperationResult>>, HugotoJsonError> {
         let mut index = Vec::new();
 
+        // TODO: Attempt to use Raynon for a speed increase.
+
         let thread_count = num_cpus::get();
         let pool = ThreadPool::new(thread_count);
         let (tx, rx) = channel();
@@ -46,6 +48,7 @@ impl Traverser {
             match entry {
                 Ok(ref file) => {
                     let file_location = FileLocation::new(file, &self.contents_directory_path);
+                    // TODO: What should be done in this case?
                     if file_location.is_err() {
                         continue;
                     }
