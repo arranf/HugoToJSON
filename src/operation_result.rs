@@ -3,6 +3,7 @@ use std::fmt;
 use std::io;
 
 #[derive(Debug)]
+/// Represents an error that occurs parsing the frontmatter of a doc
 pub struct ParseError {
     info: String,
     directory: String,
@@ -29,6 +30,7 @@ impl error::Error for ParseError {
 }
 
 impl ParseError {
+    /// Creates a `ParseError`
     pub fn new(directory: &str, info: &str) -> Self {
         Self {
             directory: directory.to_owned(),
@@ -39,6 +41,7 @@ impl ParseError {
 }
 
 #[derive(Debug, PartialEq)]
+/// Represents a document that was skipped over, typically due to being a draft
 pub struct Skip {
     reason: String,
     directory: String,
@@ -61,6 +64,7 @@ impl error::Error for Skip {
 }
 
 impl Skip {
+    /// Creates a `Skip`
     pub fn new(directory: &str, reason: &str) -> Self {
         Self {
             directory: directory.to_owned(),
@@ -70,6 +74,7 @@ impl Skip {
 }
 
 #[derive(Debug, PartialEq)]
+/// Represents an error that occurs constructing a path
 pub struct PathError {
     reason: String,
     directory: String,
@@ -92,6 +97,7 @@ impl error::Error for PathError {
 }
 
 impl PathError {
+    /// Creates a `PathError`
     pub fn new(directory: &str, reason: &str) -> Self {
         Self {
             directory: directory.to_owned(),
@@ -101,10 +107,15 @@ impl PathError {
 }
 
 #[derive(Debug)]
+/// Represents the possible error results of trying to create a `PageIndex` from a document.
 pub enum OperationResult {
+    /// An IO error occurred.
     Io(io::Error),
+    /// A parse error occurred.
     Parse(ParseError),
+    /// It was skipped, possibly due to being a draft - also possibly because its frontmatter wasn't supported.
     Skip(Skip),
+    /// There was an error constructing a path.
     Path(PathError),
 }
 
