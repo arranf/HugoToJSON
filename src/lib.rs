@@ -36,7 +36,7 @@ use traverse::{TraverseResults, Traverser};
 /// use hugo_to_json::{create_page_index, page_index::PageIndex, operation_result::OperationResult, hugo_to_json_error::HugotoJsonError};
 /// use std::path::PathBuf;
 ///
-/// let traverse_result = create_page_index(PathBuf::from("/home/example_user/documents/blog/contents/"))?;
+/// let traverse_result = create_page_index(PathBuf::from("/home/example_user/documents/blog/contents/"), false)?;
 /// // We can then see if there were any errors.
 /// let indices: Vec<PageIndex> = traverse_result.page_index;
 /// let errors: Vec<OperationResult> = traverse_result.errors;
@@ -50,8 +50,11 @@ use traverse::{TraverseResults, Traverser};
 /// # Errors
 /// A `HugoToJsonError` should only occur if an IO error occurs trying to access the contents directory.
 /// All other errors are stored in the errors property of the `TraverseResults`.
-pub fn create_page_index(contents_directory: PathBuf) -> Result<TraverseResults, HugotoJsonError> {
-    let traverser = Traverser::new(contents_directory);
+pub fn create_page_index(
+    contents_directory: PathBuf,
+    drafts: bool,
+) -> Result<TraverseResults, HugotoJsonError> {
+    let traverser = Traverser::new(contents_directory, drafts);
     let index = traverser.traverse_files()?;
 
     let (oks, errors): (Vec<_>, Vec<_>) = index.into_iter().partition(Result::is_ok);
@@ -79,7 +82,7 @@ fn write_page_index<W: Write>(
 /// use hugo_to_json::convert_to_json_and_write;
 /// use std::path::PathBuf;
 /// # use hugo_to_json::hugo_to_json_error::HugotoJsonError;
-/// convert_to_json_and_write(PathBuf::from("/home/example_user/documents/blog/contents/"), None)?;
+/// convert_to_json_and_write(PathBuf::from("/home/example_user/documents/blog/contents/"), None, false)?;
 /// # Ok::<(), HugotoJsonError>(())
 /// ```
 ///
@@ -89,7 +92,7 @@ fn write_page_index<W: Write>(
 /// use std::path::PathBuf;
 /// # use hugo_to_json::hugo_to_json_error::HugotoJsonError;
 ///
-/// let result = convert_to_json_and_write(PathBuf::from("/home/example_user/documents/blog/contents/"), Some(PathBuf::from("/home/example_user/documents/blog/static/index.json")))?;
+/// let result = convert_to_json_and_write(PathBuf::from("/home/example_user/documents/blog/contents/"), Some(PathBuf::from("/home/example_user/documents/blog/static/index.json")), false)?;
 /// # Ok::<(), HugotoJsonError>(())
 /// ```
 ///
@@ -98,9 +101,10 @@ fn write_page_index<W: Write>(
 pub fn convert_to_json_and_write(
     contents_directory: PathBuf,
     output_location: Option<PathBuf>,
+    drafts: bool,
 ) -> Result<(), HugotoJsonError> {
     info!("Scanning {:?}", contents_directory);
-    let traverse_results = create_page_index(contents_directory)?;
+    let traverse_results = create_page_index(contents_directory, drafts)?;
     let index = serde_json::to_string(&traverse_results.page_index)?;
 
     // Logging

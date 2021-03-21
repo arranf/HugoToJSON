@@ -15,4 +15,7 @@ pub struct Settings {
     /// The path that index will be output to. If not provided, writes to stdout.
     #[structopt(short = "o", parse(from_os_str))]
     pub output: Option<PathBuf>,
+    /// Include drafts in the output. By default, drafts are not included.
+    #[structopt(long)]
+    pub drafts: bool,
 }

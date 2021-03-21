@@ -300,7 +300,7 @@ tags:
     let mut buf_reader = BufReader::new(output_file);
     let mut read_back = String::new();
     buf_reader.read_to_string(&mut read_back)?;
-    let expected = r#"[{"title":"What You Can Achieve In a Year","href":"/what-you-can-achieve-in-a-year/","date":"2019-02-15T20:01:39Z","content":"Jon Edmiston\n","tags":["Blog","RSS","Blogging"]}]"#;
+    let expected = r#"[{"title":"What You Can Achieve In a Year","href":"/what-you-can-achieve-in-a-year/","date":"2019-02-15T20:01:39Z","content":"Jon Edmiston\n","tags":["Blog","RSS","Blogging"],"draft":false}]"#;
     assert_eq!(read_back, expected);
 
     remove_file(output_file_path)?;
@@ -339,7 +339,7 @@ Contents here
     let mut buf_reader = BufReader::new(output_file);
     let mut read_back = String::new();
     buf_reader.read_to_string(&mut read_back)?;
-    let expected = r#"[{"title":"Replacing Sed/Awk With Amber","href":"/replacing-awk-sed-with-amber/","date":"2019-01-25T07:52:40Z","content":"Contents here","tags":["Rust","Bash","Awk","Sed","Amber","Code Search","Replace","Unix"]}]"#;
+    let expected = r#"[{"title":"Replacing Sed/Awk With Amber","href":"/replacing-awk-sed-with-amber/","date":"2019-01-25T07:52:40Z","content":"Contents here","tags":["Rust","Bash","Awk","Sed","Amber","Code Search","Replace","Unix"],"draft":false}]"#;
     assert_eq!(read_back, expected);
 
     remove_file(output_file_path)?;
@@ -378,7 +378,7 @@ Contents here
     let mut buf_reader = BufReader::new(output_file);
     let mut read_back = String::new();
     buf_reader.read_to_string(&mut read_back)?;
-    let expected = r#"[{"title":"Replacing Sed/Awk With Amber","href":"/en/post/2019/replacing-awk-sed-with-amber","date":"2019-01-25T07:52:40Z","content":"Contents here","tags":["Rust","Bash","Awk","Sed","Amber","Code Search","Replace","Unix"]}]"#;
+    let expected = r#"[{"title":"Replacing Sed/Awk With Amber","href":"/en/post/2019/replacing-awk-sed-with-amber","date":"2019-01-25T07:52:40Z","content":"Contents here","tags":["Rust","Bash","Awk","Sed","Amber","Code Search","Replace","Unix"],"draft":false}]"#;
     assert_eq!(read_back, expected);
 
     remove_file(output_file_path)?;
@@ -425,8 +425,13 @@ tags:
     let mut read_back = String::new();
     buf_reader.read_to_string(&mut read_back)?;
     let expected = format!(
-        r#"[{{"title":"What You Can Achieve In a Year","href":"/{0}/what-you-can-achieve-in-a-year/","date":"2019-02-15T20:01:39Z","content":"Jon Edmiston\n","tags":["Blog","RSS","Blogging"]}}]"#,
-        nested_inside_content_dir.path().file_stem().unwrap().to_str().unwrap()
+        r#"[{{"title":"What You Can Achieve In a Year","href":"/{0}/what-you-can-achieve-in-a-year/","date":"2019-02-15T20:01:39Z","content":"Jon Edmiston\n","tags":["Blog","RSS","Blogging"],"draft":false}}]"#,
+        nested_inside_content_dir
+            .path()
+            .file_stem()
+            .unwrap()
+            .to_str()
+            .unwrap()
     );
     assert_eq!(read_back, expected);
 
@@ -473,9 +478,19 @@ tags:
     let mut read_back = String::new();
     buf_reader.read_to_string(&mut read_back)?;
     let expected = format!(
-        r#"[{{"title":"What You Can Achieve In a Year","href":"/{0}/{1}/","date":"2019-02-15T20:01:39Z","content":"Jon Edmiston\n","tags":["Blog","RSS","Blogging"]}}]"#,
-        nested_inside_content_dir.path().file_stem().unwrap().to_str().unwrap(),
-        file.path().file_stem().unwrap().to_str().unwrap().to_lowercase()
+        r#"[{{"title":"What You Can Achieve In a Year","href":"/{0}/{1}/","date":"2019-02-15T20:01:39Z","content":"Jon Edmiston\n","tags":["Blog","RSS","Blogging"],"draft":false}}]"#,
+        nested_inside_content_dir
+            .path()
+            .file_stem()
+            .unwrap()
+            .to_str()
+            .unwrap(),
+        file.path()
+            .file_stem()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_lowercase()
     );
     assert_eq!(read_back, expected);
 

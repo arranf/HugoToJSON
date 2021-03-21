@@ -28,6 +28,8 @@ pub struct PageIndex {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     /// Keywords of the document from frontmatter
     pub keywords: Vec<String>,
+    /// Is this a draft?
+    pub draft: bool,
 }
 
 // TODO: Make this use a builder pattern.
@@ -49,6 +51,7 @@ impl PageIndex {
         content: String,
         file_location: &FileLocation,
         url: Option<&str>,
+        draft: bool,
     ) -> Result<Self, OperationResult> {
         let title = title
             .ok_or_else(|| {
@@ -84,6 +87,7 @@ impl PageIndex {
             keywords,
             href,
             content,
+            draft,
         })
     }
 }
@@ -155,6 +159,7 @@ mod tests {
             content,
             &build_file_location(),
             url,
+            false,
         );
         assert!(page_index.is_ok());
         assert_eq!(page_index.unwrap().href, "/post/my-example-post/")
@@ -185,6 +190,7 @@ mod tests {
             content,
             &build_file_location(),
             url,
+            false,
         );
         assert!(page_index.is_ok());
         assert_eq!(
@@ -218,6 +224,7 @@ mod tests {
             content,
             &build_file_location(),
             url,
+            false,
         );
         assert!(page_index.is_ok());
         assert_eq!(page_index.unwrap().href, "/post/example/")
@@ -250,6 +257,7 @@ mod tests {
             content,
             &file_location,
             url,
+            false,
         );
         assert!(page_index.is_ok());
         assert_eq!(page_index.unwrap().href, "/post/example/")
@@ -280,6 +288,7 @@ mod tests {
             content,
             &build_file_location(),
             url,
+            false,
         )
         .is_err());
     }
@@ -309,6 +318,7 @@ mod tests {
             content,
             &build_file_location(),
             url,
+            false,
         )
         .is_err());
     }
