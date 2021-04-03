@@ -2,5 +2,4 @@
 * Add support for permalinks: https://gohugo.io/content-management/urls/#permalinks
 * Allow front matter fields and output fields to be configurable
 * Allow directories to be excluded/included
-* Add flag for including drafts
 * Support for ugly urls
