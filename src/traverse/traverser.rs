@@ -17,12 +17,14 @@ use crate::page_index::PageIndex;
 
 pub struct Traverser {
     contents_directory_path: PathBuf,
+    drafts: bool, // Include drafts.
 }
 
 impl Traverser {
-    pub fn new(contents_directory_path: PathBuf) -> Self {
+    pub fn new(contents_directory_path: PathBuf, drafts: bool) -> Self {
         Self {
             contents_directory_path,
+            drafts,
         }
     }
 
@@ -31,6 +33,7 @@ impl Traverser {
         &self,
     ) -> Result<Vec<Result<PageIndex, OperationResult>>, HugotoJsonError> {
         let mut index = Vec::new();
+        let drafts = self.drafts;
 
         // TODO: Attempt to use Raynon for a speed increase.
 
@@ -58,7 +61,7 @@ impl Traverser {
 
                     pool.execute(move || {
                         debug!("Processing {}", &file_location);
-                        let process_result = process_file(&file_location);
+                        let process_result = process_file(&file_location, drafts);
                         thread_tx.send(process_result).expect("Channel exists");
                     });
                 }
@@ -99,9 +102,9 @@ impl Traverser {
     }
 }
 
-fn process_file(file_location: &FileLocation) -> Result<PageIndex, OperationResult> {
+fn process_file(file_location: &FileLocation, drafts: bool) -> Result<PageIndex, OperationResult> {
     match file_location.extension.as_ref() {
-        constants::MARKDOWN_EXTENSION => process_md_file(&file_location),
+        constants::MARKDOWN_EXTENSION => process_md_file(&file_location, drafts),
         // TODO: .html files
         _ => Err(OperationResult::Path(PathError::new(
             &file_location.absolute_path,
@@ -111,13 +114,16 @@ fn process_file(file_location: &FileLocation) -> Result<PageIndex, OperationResu
     }
 }
 
-fn process_md_file(file_location: &FileLocation) -> Result<PageIndex, OperationResult> {
+fn process_md_file(
+    file_location: &FileLocation,
+    drafts: bool,
+) -> Result<PageIndex, OperationResult> {
     let contents = fs::read_to_string(file_location.absolute_path.to_string())?;
     let first_line = contents.lines().find(|&l| !l.trim().is_empty());
 
     match first_line.unwrap_or_default().chars().next() {
-        Some('+') => process_md_toml_front_matter(&contents, &file_location),
-        Some('-') => process_md_yaml_front_matter(&contents, &file_location),
+        Some('+') => process_md_toml_front_matter(&contents, &file_location, drafts),
+        Some('-') => process_md_yaml_front_matter(&contents, &file_location, drafts),
         // TODO: JSON frontmatter '{' => process_json_frontmatter()
         _ => Err(OperationResult::Parse(ParseError::new(
             &file_location.absolute_path,
@@ -129,6 +135,7 @@ fn process_md_file(file_location: &FileLocation) -> Result<PageIndex, OperationR
 fn process_md_toml_front_matter(
     contents: &str,
     file_location: &FileLocation,
+    drafts: bool,
 ) -> Result<PageIndex, OperationResult> {
     let split_content: Vec<&str> = contents.trim().split(constants::TOML_FENCE).collect();
 
@@ -154,8 +161,7 @@ fn process_md_toml_front_matter(
         .and_then(Value::as_bool)
         .unwrap_or(false);
 
-    // TODO: Add a flag to allow indexing drafts
-    if is_draft {
+    if is_draft && !drafts {
         return Err(OperationResult::Skip(Skip::new(
             &file_location.absolute_path,
             "Is draft.",
@@ -216,12 +222,14 @@ fn process_md_toml_front_matter(
         content,
         &file_location,
         url,
+        is_draft,
     )
 }
 
 fn process_md_yaml_front_matter(
     contents: &str,
     file_location: &FileLocation,
+    drafts: bool,
 ) -> Result<PageIndex, OperationResult> {
     let split_content: Vec<&str> = contents.trim().split(constants::YAML_FENCE).collect();
     let length = split_content.len();
@@ -248,8 +256,7 @@ fn process_md_yaml_front_matter(
 
     let is_draft = front_matter[constants::DRAFT].as_bool().unwrap_or(false);
 
-    // TODO: Add a flag to allow indexing drafts
-    if is_draft {
+    if is_draft && !drafts {
         return Err(OperationResult::Skip(Skip::new(
             &file_location.absolute_path,
             "Is draft.",
@@ -304,6 +311,7 @@ fn process_md_yaml_front_matter(
         content,
         &file_location,
         url,
+        is_draft,
     )
 }
 
@@ -346,7 +354,7 @@ tags:
 The state of images on the web is pretty rough. What should be an easy goal, showing a user a picture, is...
 "#,
         );
-        let page_index = process_md_yaml_front_matter(&contents, &build_file_location());
+        let page_index = process_md_yaml_front_matter(&contents, &build_file_location(), false);
         assert!(page_index.is_ok());
         let page_index = page_index.unwrap();
         assert_eq!(page_index.title, "Responsive Blog Images");
@@ -382,7 +390,7 @@ tags:
 The state of images on the web is pretty rough. What should be an easy goal, showing a user a picture, is...
 "#,
         );
-        let page_index = process_md_yaml_front_matter(&contents, &build_file_location());
+        let page_index = process_md_yaml_front_matter(&contents, &build_file_location(), false);
         assert!(page_index.is_err());
         // Pattern match the error type
         match page_index.unwrap_err() {
@@ -405,7 +413,7 @@ tags:
   - Images
 "#,
         );
-        let page_index = process_md_yaml_front_matter(&contents, &build_file_location());
+        let page_index = process_md_yaml_front_matter(&contents, &build_file_location(), false);
         assert!(page_index.is_ok());
     }
 
@@ -424,7 +432,7 @@ tags
 "#,
         );
 
-        let page_index = process_md_yaml_front_matter(&contents, &build_file_location());
+        let page_index = process_md_yaml_front_matter(&contents, &build_file_location(), false);
         assert!(page_index.is_err());
         // Pattern match error
         match page_index.unwrap_err() {
@@ -451,7 +459,7 @@ Design is iterative
 "#,
         );
 
-        let page_index = process_md_toml_front_matter(&contents, &build_file_location());
+        let page_index = process_md_toml_front_matter(&contents, &build_file_location(), false);
         assert!(page_index.is_ok());
         let page_index = page_index.unwrap();
         assert_eq!(page_index.title, "Evaluating Software Design");
@@ -485,7 +493,7 @@ Design is iterative
 "#,
         );
 
-        let page_index = process_md_toml_front_matter(&contents, &build_file_location());
+        let page_index = process_md_toml_front_matter(&contents, &build_file_location(), false);
         assert!(page_index.is_err());
         // Pattern match error
         match page_index.unwrap_err() {
@@ -509,7 +517,7 @@ Design is iterative
 "#,
         );
 
-        let page_index = process_md_toml_front_matter(&contents, &build_file_location());
+        let page_index = process_md_toml_front_matter(&contents, &build_file_location(), false);
         assert!(page_index.is_err());
         // Pattern match error
         match page_index.unwrap_err() {
@@ -533,7 +541,7 @@ Design is iterative
 "#,
         );
 
-        let page_index = process_md_toml_front_matter(&contents, &build_file_location());
+        let page_index = process_md_toml_front_matter(&contents, &build_file_location(), false);
         assert!(page_index.is_err());
         // Pattern match error
         match page_index.unwrap_err() {
@@ -558,7 +566,7 @@ Design is iterative
 "#,
         );
 
-        let page_index = process_md_toml_front_matter(&contents, &build_file_location());
+        let page_index = process_md_toml_front_matter(&contents, &build_file_location(), false);
         assert!(page_index.is_err());
         // Pattern match error
         match page_index.unwrap_err() {

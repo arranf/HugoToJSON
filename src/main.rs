@@ -11,5 +11,5 @@ use structopt::StructOpt;
 fn main() -> Result<(), HugotoJsonError> {
     env_logger::Builder::from_env(Env::new().filter_or("HUGO_TO_JSON_LOG", "info")).init();
     let settings = Settings::from_args();
-    convert_to_json_and_write(settings.scan_path, settings.output)
+    convert_to_json_and_write(settings.scan_path, settings.output, settings.drafts)
 }
